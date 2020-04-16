@@ -1,207 +1,321 @@
+// Even (the odds) main activity.
+
 package com.dialectek.even_the_odds;
 
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.app.ActivityCompat;
-
 import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity
 {
-    private static final String LOG_TAG = "MainActivity";
-    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
-    private static String fileName = null;
+   private static final String LOG_TAG = "MainActivity";
+   private static final int    REQUEST_RECORD_AUDIO_PERMISSION = 200;
+   private static String       fileName = null;
 
-    private RecordButton recordButton = null;
-    private MediaRecorder recorder = null;
+   private RecordButton  recordButton = null;
+   private MediaRecorder recorder     = null;
 
-    private PlayButton   playButton = null;
-    private MediaPlayer   player = null;
+   private PlayButton  playButton = null;
+   private MediaPlayer player     = null;
 
-    // Requesting permission to RECORD_AUDIO
-    private boolean permissionToRecordAccepted = false;
-    private String [] permissions = {Manifest.permission.RECORD_AUDIO};
+   // Requesting permission to RECORD_AUDIO
+   private boolean permissionToRecordAccepted = false;
+   private         String [] permissions = { Manifest.permission.RECORD_AUDIO };
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-    {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode)
-        {
-            case REQUEST_RECORD_AUDIO_PERMISSION:
-                permissionToRecordAccepted  = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-                break;
-        }
-        if (!permissionToRecordAccepted ) finish();
+   @Override
+   public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+   {
+      super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+      switch (requestCode)
+      {
+      case REQUEST_RECORD_AUDIO_PERMISSION:
+         permissionToRecordAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+         break;
+      }
+      if (!permissionToRecordAccepted) { finish(); }
+   }
 
-    }
 
-    private void onRecord(boolean start)
-    {
-        if (start)
-        {
-            startRecording();
-        } else {
-            stopRecording();
-        }
-    }
+   private void onRecord(boolean start)
+   {
+      if (start)
+      {
+         startRecording();
+      }
+      else
+      {
+         stopRecording();
+      }
+   }
 
-    private void onPlay(boolean start)
-    {
-        if (start)
-        {
-            startPlaying();
-        } else {
-            stopPlaying();
-        }
-    }
 
-    private void startPlaying()
-    {
-        player = new MediaPlayer();
-        try
-        {
-            player.setDataSource(fileName);
-            player.prepare();
-            player.start();
-        } catch (IOException e)
-        {
-            Log.e(LOG_TAG, "prepare() failed");
-        }
-    }
+   private void onPlay(boolean start)
+   {
+      if (start)
+      {
+         startPlaying();
+      }
+      else
+      {
+         stopPlaying();
+      }
+   }
 
-    private void stopPlaying()
-    {
-        player.release();
-        player = null;
-    }
 
-    private void startRecording()
-    {
-        recorder = new MediaRecorder();
-        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        recorder.setOutputFile(fileName);
-        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+   private void startPlaying()
+   {
+      player = new MediaPlayer();
+      try
+      {
+         player.setDataSource(fileName);
+         player.prepare();
+         player.start();
+      }
+      catch (IOException e)
+      {
+         Log.e(LOG_TAG, "prepare() failed");
+      }
+   }
 
-        try {
-            recorder.prepare();
-        } catch (IOException e) {
-            Log.e(LOG_TAG, "prepare() failed");
-        }
 
-        recorder.start();
-    }
+   private void stopPlaying()
+   {
+      player.release();
+      player = null;
+   }
 
-    private void stopRecording() {
-        recorder.stop();
-        recorder.release();
-        recorder = null;
-    }
 
-    class RecordButton extends Button
-    {
-        boolean mStartRecording = true;
+   private void startRecording()
+   {
+      recorder = new MediaRecorder();
+      recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+      recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+      recorder.setOutputFile(fileName);
+      recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
-        OnClickListener clicker = new OnClickListener()
-        {
-            public void onClick(View v)
+      try {
+         recorder.prepare();
+      }
+      catch (IOException e) {
+         Log.e(LOG_TAG, "prepare() failed");
+      }
+
+      recorder.start();
+   }
+
+
+   private void stopRecording()
+   {
+      recorder.stop();
+      recorder.release();
+      recorder = null;
+   }
+
+
+   class RecordButton extends AppCompatButton
+   {
+      boolean mStartRecording = true;
+
+      OnClickListener clicker = new OnClickListener()
+      {
+         public void onClick(View v)
+         {
+            onRecord(mStartRecording);
+            if (mStartRecording)
             {
-                onRecord(mStartRecording);
-                if (mStartRecording)
-                {
-                    setText("Stop recording");
-                } else {
-                    setText("Start recording");
-                }
-                mStartRecording = !mStartRecording;
+               setText("Stop recording");
             }
-        };
-
-        public RecordButton(Context ctx)
-        {
-            super(ctx);
-            setText("Start recording");
-            setOnClickListener(clicker);
-        }
-    }
-
-    class PlayButton extends Button
-    {
-        boolean mStartPlaying = true;
-
-        OnClickListener clicker = new OnClickListener()
-        {
-            public void onClick(View v) {
-                onPlay(mStartPlaying);
-                if (mStartPlaying) {
-                    setText("Stop playing");
-                } else {
-                    setText("Start playing");
-                }
-                mStartPlaying = !mStartPlaying;
+            else
+            {
+               setText("Start recording");
             }
-        };
+            mStartRecording = !mStartRecording;
+         }
+      };
 
-        public PlayButton(Context ctx)
-        {
-            super(ctx);
-            setText("Start playing");
-            setOnClickListener(clicker);
-        }
-    }
+      public RecordButton(Context ctx)
+      {
+         super(ctx);
+         setText("Start recording");
+         setOnClickListener(clicker);
+      }
+   }
 
-    @Override
-    public void onCreate(Bundle icicle)
-    {
-        super.onCreate(icicle);
+   class PlayButton extends AppCompatButton
+   {
+      boolean mStartPlaying = true;
 
-        // Record to the external cache directory for visibility
-        fileName = getExternalCacheDir().getAbsolutePath();
-        fileName += "/audiorecordtest.3gp";
+      OnClickListener clicker = new OnClickListener()
+      {
+         public void onClick(View v)
+         {
+            onPlay(mStartPlaying);
+            if (mStartPlaying)
+            {
+               setText("Stop playing");
+            }
+            else
+            {
+               setText("Start playing");
+            }
+            mStartPlaying = !mStartPlaying;
+         }
+      };
 
-        ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
+      public PlayButton(Context ctx)
+      {
+         super(ctx);
+         setText("Start playing");
+         setOnClickListener(clicker);
+      }
+   }
 
-        LinearLayout ll = new LinearLayout(this);
-        recordButton = new RecordButton(this);
-        ll.addView(recordButton,
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        0));
-        playButton = new PlayButton(this);
-        ll.addView(playButton,
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        0));
-        setContentView(ll);
-    }
+   @Override
+   public void onCreate(Bundle savedInstanceState)
+   {
+      super.onCreate(savedInstanceState);
 
-    @Override
-    public void onStop()
-    {
-        super.onStop();
-        if (recorder != null) {
-            recorder.release();
-            recorder = null;
-        }
+      // Record to the external cache directory for visibility
+      fileName  = getExternalCacheDir().getAbsolutePath();
+      fileName += "/audiorecordtest.3gp";
 
-        if (player != null)
-        {
-            player.release();
-            player = null;
-        }
-    }
+      ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
+
+      LinearLayout ll = new LinearLayout(this);
+      ll.setOrientation(LinearLayout.VERTICAL);
+      ll.setGravity(Gravity.CENTER);
+
+      // Record button.
+      recordButton = new RecordButton(this);
+      ll.addView(recordButton,
+                 new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    0));
+      int buttonWidth = (int)((float)Resources.getSystem().getDisplayMetrics().widthPixels * 0.6f);
+      recordButton.setWidth(buttonWidth);
+
+      // Play button.
+      playButton = new PlayButton(this);
+      ll.addView(playButton,
+                 new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    0));
+      playButton.setWidth(buttonWidth);
+
+      // Save.
+      Button saveButton = new Button(this);
+      saveButton.setText("Save recording");
+      ll.addView(saveButton,
+                 new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    0));
+      saveButton.setWidth(buttonWidth);
+      saveButton.setOnClickListener(new OnClickListener()
+      {
+         String m_chosen;
+
+         @Override
+         public void onClick(View v)
+         {
+            RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
+                                             new RecordManager.Listener()
+                                             {
+                                                @Override
+                                                public void onChosenDir(String chosenDir)
+                                                {
+                                                   m_chosen = chosenDir;
+                                                }
+                                             }
+                                             );
+
+            recordSaver.Default_File_Name = "my_default.txt";
+            recordSaver.chooseFile_or_Dir();
+         }
+      }
+      );
+
+      // Browse.
+      Button browseButton = new Button(this);
+      browseButton.setText("Browse recordings");
+      ll.addView(browseButton,
+                 new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    0));
+      browseButton.setWidth(buttonWidth);
+      browseButton.setOnClickListener(new OnClickListener()
+      {
+         String m_chosen;
+
+         @Override
+         public void onClick(View v)
+         {
+            RecordManager recordBrowser = new RecordManager(MainActivity.this, "Browse",
+                                               new RecordManager.Listener()
+                                               {
+                                                  @Override
+                                                  public void onChosenDir(String chosenDir)
+                                                  {
+                                                     m_chosen = chosenDir;
+                                                  }
+                                               }
+                                               );
+
+            recordBrowser.Default_File_Name = "";
+            recordBrowser.chooseFile_or_Dir();
+         }
+      }
+      );
+
+      setContentView(ll);
+   }
+
+
+   @Override
+   public boolean onCreateOptionsMenu(Menu menu)
+   {
+      getMenuInflater().inflate(R.menu.main, menu);
+      return(true);
+   }
+
+
+   @Override
+   public void onStop()
+   {
+      super.onStop();
+      if (recorder != null)
+      {
+         recorder.release();
+         recorder = null;
+      }
+
+      if (player != null)
+      {
+         player.release();
+         player = null;
+      }
+   }
 }
