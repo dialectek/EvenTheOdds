@@ -37,7 +37,7 @@ public class RecordManager
    private Context  m_context;
    private TextView m_operationView;
    private TextView m_titleView;
-   public String    Default_File_Name  = "default.txt";
+   public static String    Default_File_Name  = "";
    private String   Selected_File_Name = Default_File_Name;
    private EditText input_text;
 
@@ -45,10 +45,13 @@ public class RecordManager
    private List<String>         m_subdirs     = null;
    private Listener             m_Listener    = null;
 
-   private List<String>         m_listItems   = null;
+   private List<String>         m_showdirs    = null;
    private ArrayAdapter<String> m_listAdapter = null;
-   private final int MAX_ITEM_GROUP_SIZE      = 5;
-   private int                  m_itemGroup   = 0;
+   private final int MAX_SHOW_DIRS            = 3;
+   private int                  m_showIndex   = 0;
+   Button m_backButton                        = null;
+   Button m_upButton                          = null;
+   Button m_downButton                        = null;
 
    // Callback interface for selected directory.
    public interface Listener
@@ -116,30 +119,22 @@ public class RecordManager
 
             if (sel.charAt(sel.length() - 1) == '/') { sel = sel.substring(0, sel.length() - 1); }
 
-            // Navigate into the sub-directory
-            if (sel.equals(".."))
-            {
-               m_dir = m_dir.substring(0, m_dir.lastIndexOf("/"));
-            }
-            else
-            {
-               m_dir += "/" + sel;
-            }
+            m_dir += "/" + sel;
             Selected_File_Name = Default_File_Name;
 
-            // Regular file?
             if ((new File(m_dir).isFile()))
             {
                m_dir = m_dir_old;
                Selected_File_Name = sel;
+            } else {
+               m_showIndex = 0;
             }
 
             updateDirectory();
          }
       }
 
-      AlertDialog.Builder dialogBuilder = createDirectoryChooserDialog(dir, m_subdirs,
-                                                                       new Listener());
+      AlertDialog.Builder dialogBuilder = createDirectoryChooserDialog(dir, new Listener());
 
       if (Select_type == Browse)
       {
@@ -256,9 +251,6 @@ public class RecordManager
       {
          File dirFile = new File(dir);
 
-         // If directory is not the root data directory add ".." for going up one directory.
-         if (!m_dir.equals(m_dataDirectory)) { dirs.add(".."); }
-
          if (!dirFile.exists() || !dirFile.isDirectory())
          {
             return(dirs);
@@ -292,7 +284,7 @@ public class RecordManager
 
 
    /// Dialog definition.
-   private AlertDialog.Builder createDirectoryChooserDialog(String title, List<String> listItems,
+   private AlertDialog.Builder createDirectoryChooserDialog(String title,
                                                             DialogInterface.OnClickListener onClickListener)
    {
       AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(m_context);
@@ -358,20 +350,62 @@ public class RecordManager
       // Create navigation buttons.
       LinearLayout navigationLayout = new LinearLayout(m_context);
       navigationLayout.setOrientation(LinearLayout.HORIZONTAL);
-      Button backButton = new Button(m_context);
-      backButton.setEnabled(false);
+      m_backButton = new Button(m_context);
+      m_backButton.setEnabled(false);
       LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, 1f);
-      backButton.setLayoutParams(params);
-      backButton.setText("Back");
-      navigationLayout.addView(backButton);
-      Button upButton = new Button(m_context);
-      upButton.setLayoutParams(params);
-      upButton.setText("Up");
-      navigationLayout.addView(upButton);
-      Button downButton = new Button(m_context);
-      downButton.setLayoutParams(params);
-      downButton.setText("Down");
-      navigationLayout.addView(downButton);
+      m_backButton.setLayoutParams(params);
+      m_backButton.setText("Back");
+      m_backButton.setOnClickListener(new View.OnClickListener()
+                                      {
+                                         @Override
+                                         public void onClick(View v)
+                                         {
+                                            if (!m_dir.equals(m_dataDirectory))
+                                            {
+                                               m_dir = m_dir.substring(0, m_dir.lastIndexOf("/"));
+                                               m_showIndex = 0;
+                                               updateDirectory();
+                                            }
+                                         }
+                                      }
+      );
+      navigationLayout.addView(m_backButton);
+      m_upButton = new Button(m_context);
+      m_upButton.setEnabled(false);
+      m_upButton.setLayoutParams(params);
+      m_upButton.setText("Up");
+      m_upButton.setOnClickListener(new View.OnClickListener()
+                                    {
+                                       @Override
+                                       public void onClick(View v)
+                                       {
+                                          if (m_showIndex > 0)
+                                          {
+                                             m_showIndex--;
+                                             updateDirectory();
+                                          }
+                                       }
+                                    }
+      );
+      navigationLayout.addView(m_upButton);
+      m_downButton = new Button(m_context);
+      m_downButton.setEnabled(false);
+      m_downButton.setLayoutParams(params);
+      m_downButton.setText("Down");
+      m_downButton.setOnClickListener(new View.OnClickListener()
+                                  {
+                                     @Override
+                                     public void onClick(View v)
+                                     {
+                                        if ((MAX_SHOW_DIRS * (m_showIndex + 1)) < m_subdirs.size())
+                                        {
+                                           m_showIndex++;
+                                           updateDirectory();
+                                        }
+                                     }
+                                  }
+      );
+      navigationLayout.addView(m_downButton);
       operationLayout.addView(navigationLayout);
 
       // Create view with folder path and entry text box.
@@ -395,8 +429,10 @@ public class RecordManager
       // Set views and finish dialog builder.
       dialogBuilder.setView(titleLayout);
       dialogBuilder.setCustomTitle(operationLayout);
-      m_listItems = listItems;
-      m_listAdapter = createListAdapter(listItems);
+      m_showIndex = 0;
+      m_showdirs = new ArrayList<String>();
+      m_listAdapter = createListAdapter(m_showdirs);
+      updateDirectory();
       dialogBuilder.setSingleChoiceItems(m_listAdapter, -1, onClickListener);
       dialogBuilder.setCancelable(false);
       return(dialogBuilder);
@@ -408,10 +444,37 @@ public class RecordManager
       m_subdirs.clear();
       m_subdirs.addAll(getDirectories(m_dir));
       m_titleView.setText(m_dir);
-      m_listAdapter.notifyDataSetChanged();
-      if ((Select_type == Save) || (Select_type == Browse))
+      m_showdirs.clear();
+      int i = MAX_SHOW_DIRS * m_showIndex;
+      for (int j = 0; j < MAX_SHOW_DIRS && i < m_subdirs.size(); j++, i++)
       {
-         input_text.setText(Selected_File_Name);
+         m_showdirs.add(m_subdirs.get(i));
+      }
+      m_listAdapter.notifyDataSetChanged();
+      input_text.setText(Selected_File_Name);
+      if (m_dir.equals(m_dataDirectory))
+      {
+         m_backButton.setEnabled(false);
+      } else {
+         m_backButton.setEnabled(true);
+      }
+      if (m_showIndex > 0)
+      {
+         m_upButton.setEnabled(true);
+      } else {
+         m_upButton.setEnabled(false);
+      }
+      if ((MAX_SHOW_DIRS * (m_showIndex + 1)) < m_subdirs.size())
+      {
+         m_downButton.setEnabled(true);
+      } else {
+         m_downButton.setEnabled(false);
+      }
+      if (m_showIndex > 0)
+      {
+         m_upButton.setEnabled(true);
+      } else {
+         m_upButton.setEnabled(false);
       }
    }
 

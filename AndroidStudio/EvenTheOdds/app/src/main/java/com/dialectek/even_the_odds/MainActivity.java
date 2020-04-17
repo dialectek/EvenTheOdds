@@ -240,6 +240,7 @@ public class MainActivity extends AppCompatActivity
          @Override
          public void onClick(View v)
          {
+            RecordManager.Default_File_Name = "my_default.txt";
             RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
                                              new RecordManager.Listener()
                                              {
@@ -250,8 +251,6 @@ public class MainActivity extends AppCompatActivity
                                                 }
                                              }
                                              );
-
-            recordSaver.Default_File_Name = "my_default.txt";
             recordSaver.chooseFile_or_Dir();
          }
       }
@@ -273,6 +272,7 @@ public class MainActivity extends AppCompatActivity
          @Override
          public void onClick(View v)
          {
+            RecordManager.Default_File_Name = "";
             RecordManager recordBrowser = new RecordManager(MainActivity.this, "Browse",
                                                new RecordManager.Listener()
                                                {
@@ -283,8 +283,6 @@ public class MainActivity extends AppCompatActivity
                                                   }
                                                }
                                                );
-
-            recordBrowser.Default_File_Name = "";
             recordBrowser.chooseFile_or_Dir();
          }
       }
