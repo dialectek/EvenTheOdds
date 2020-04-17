@@ -419,12 +419,10 @@ public class RecordManager
       m_titleView.setText(title);
       titleLayout.addView(m_titleView);
 
-      if ((Select_type == Browse) || (Select_type == Save))
-      {
-         input_text = new EditText(m_context);
-         input_text.setText(Default_File_Name);
-         titleLayout.addView(input_text);
-      }
+      // Add inpuut text.
+      input_text = new EditText(m_context);
+      input_text.setText(Default_File_Name);
+      titleLayout.addView(input_text);
 
       // Set views and finish dialog builder.
       dialogBuilder.setView(titleLayout);
