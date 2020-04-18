@@ -6,6 +6,8 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
@@ -24,13 +26,19 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.app.ActivityCompat;
+
+import java.io.File;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity
 {
    private static final String LOG_TAG = "MainActivity";
    private static final int    REQUEST_RECORD_AUDIO_PERMISSION = 200;
-   private static String       fileName = null;
+   public static String       RecordingFile = null;
 
    private RecordButton  recordButton = null;
    private MediaRecorder recorder     = null;
@@ -87,7 +95,7 @@ public class MainActivity extends AppCompatActivity
       player = new MediaPlayer();
       try
       {
-         player.setDataSource(fileName);
+         player.setDataSource(RecordingFile);
          player.prepare();
          player.start();
       }
@@ -110,7 +118,7 @@ public class MainActivity extends AppCompatActivity
       recorder = new MediaRecorder();
       recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
       recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-      recorder.setOutputFile(fileName);
+      recorder.setOutputFile(RecordingFile);
       recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
       try {
@@ -134,6 +142,8 @@ public class MainActivity extends AppCompatActivity
 
    class RecordButton extends AppCompatButton
    {
+      static final int StartColor = Color.BLACK;
+      static final int StopColor = Color.RED;
       boolean mStartRecording = true;
 
       OnClickListener clicker = new OnClickListener()
@@ -143,10 +153,12 @@ public class MainActivity extends AppCompatActivity
             onRecord(mStartRecording);
             if (mStartRecording)
             {
+               setTextColor(StopColor);
                setText("Stop recording");
             }
             else
             {
+               setTextColor(StartColor);
                setText("Start recording");
             }
             mStartRecording = !mStartRecording;
@@ -157,12 +169,15 @@ public class MainActivity extends AppCompatActivity
       {
          super(ctx);
          setText("Start recording");
+         setTextColor(StartColor);
          setOnClickListener(clicker);
       }
    }
 
    class PlayButton extends AppCompatButton
    {
+      static final int StartColor = Color.BLACK;
+      static final int StopColor = Color.RED;
       boolean mStartPlaying = true;
 
       OnClickListener clicker = new OnClickListener()
@@ -172,10 +187,12 @@ public class MainActivity extends AppCompatActivity
             onPlay(mStartPlaying);
             if (mStartPlaying)
             {
+               setTextColor(StopColor);
                setText("Stop playing");
             }
             else
             {
+               setTextColor(StartColor);
                setText("Start playing");
             }
             mStartPlaying = !mStartPlaying;
@@ -186,6 +203,7 @@ public class MainActivity extends AppCompatActivity
       {
          super(ctx);
          setText("Start playing");
+         setTextColor(StartColor);
          setOnClickListener(clicker);
       }
    }
@@ -195,9 +213,8 @@ public class MainActivity extends AppCompatActivity
    {
       super.onCreate(savedInstanceState);
 
-      // Record to the external cache directory for visibility
-      fileName  = getExternalCacheDir().getAbsolutePath();
-      fileName += "/audiorecordtest.3gp";
+      RecordingFile  = getFilesDir().getAbsolutePath();
+      RecordingFile += "/audiorecording.3gp";
 
       ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
@@ -240,18 +257,23 @@ public class MainActivity extends AppCompatActivity
          @Override
          public void onClick(View v)
          {
-            RecordManager.Default_File_Name = "my_default.txt";
-            RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
-                                             new RecordManager.Listener()
-                                             {
-                                                @Override
-                                                public void onChosenDir(String chosenDir)
-                                                {
-                                                   m_chosen = chosenDir;
-                                                }
-                                             }
-                                             );
-            recordSaver.chooseFile_or_Dir();
+            if (new File(RecordingFile).exists())
+            {
+               DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
+               String fileString = dateFormat.format(new Date()).toString() + ".3gp";
+               RecordManager.Default_File_Name = fileString;
+               RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
+                       new RecordManager.Listener() {
+                          @Override
+                          public void onChosenDir(String chosenDir) {
+                             m_chosen = chosenDir;
+                          }
+                       }
+               );
+               recordSaver.chooseFile_or_Dir();
+            } else {
+               Toast.makeText(MainActivity.this, "No recording to save", Toast.LENGTH_LONG).show();
+            }
          }
       }
       );

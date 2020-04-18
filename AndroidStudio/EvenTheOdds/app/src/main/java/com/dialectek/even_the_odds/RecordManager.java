@@ -3,7 +3,12 @@
 package com.dialectek.even_the_odds;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -13,7 +18,10 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
+import android.database.DataSetObserver;
+import android.graphics.Color;
 import android.os.Environment;
+import android.os.FileUtils;
 import android.text.Editable;
 import android.text.method.ScrollingMovementMethod;
 import android.view.Gravity;
@@ -24,9 +32,13 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.view.ContextThemeWrapper;
 
 public class RecordManager
 {
@@ -48,7 +60,7 @@ public class RecordManager
    private List<String>         m_showdirs    = null;
    private ArrayAdapter<String> m_listAdapter = null;
    private final int MAX_SHOW_DIRS            = 3;
-   private int                  m_showIndex   = 0;
+   private ArrayList<Integer>   m_showIndex   = null;
    Button m_backButton                        = null;
    Button m_upButton                          = null;
    Button m_downButton                        = null;
@@ -66,7 +78,9 @@ public class RecordManager
       else{ Select_type = Browse; }
 
       m_context       = context;
-      m_dataDirectory = context.getFilesDir().getAbsolutePath();
+      m_dataDirectory = context.getFilesDir().getAbsolutePath() + "/content/";
+      File datadir = new File(m_dataDirectory);
+      if (!datadir.exists()) datadir.mkdir();
       m_Listener      = listener;
 
       try
@@ -127,7 +141,7 @@ public class RecordManager
                m_dir = m_dir_old;
                Selected_File_Name = sel;
             } else {
-               m_showIndex = 0;
+               m_showIndex.add(0);
             }
 
             updateDirectory();
@@ -138,14 +152,22 @@ public class RecordManager
 
       if (Select_type == Browse)
       {
-         dialogBuilder.setPositiveButton("Play", new OnClickListener()
+         dialogBuilder.setPositiveButton("Select", new OnClickListener()
                  {
                     @Override
                     public void onClick(DialogInterface dialog, int which)
                     {
+                       Selected_File_Name = input_text.getText() + "";
+                       String fromFile = m_dir + "/" + Selected_File_Name;
+                       String displayFile = fromFile.replace(m_dataDirectory, "");
+                       if (Selected_File_Name.isEmpty() || !copyFile(fromFile, MainActivity.RecordingFile))
+                       {
+                          Toast.makeText(m_context, "Cannot select " + displayFile, Toast.LENGTH_LONG).show();
+                       } else {
+                          Toast.makeText(m_context, displayFile + " selected", Toast.LENGTH_LONG).show();
+                       }
                        if (m_Listener != null)
                        {
-                          Selected_File_Name = input_text.getText() + "";
                           m_Listener.onChosenDir(m_dir + "/" + Selected_File_Name);
                        }
                     }
@@ -156,12 +178,20 @@ public class RecordManager
                     @Override
                     public void onClick(DialogInterface dialog, int which)
                     {
+                       String deleteFile = m_dir;
                        Selected_File_Name = input_text.getText() + "";
-                       String deleteFile = m_dir + "/" + Selected_File_Name;
-                       if (!deleteDirFile(deleteFile))
+                       String displayFile;
+                       if (!Selected_File_Name.isEmpty()) {
+                          deleteFile += "/" + Selected_File_Name;
+                          displayFile = deleteFile.replace(m_dataDirectory, "");
+                       } else {
+                          displayFile = deleteFile.replace(m_dataDirectory, "") + "/";
+                       }
+                       if (deleteDirFile(deleteFile))
                        {
-                          Toast.makeText(m_context, "Cannot delete '"
-                                  + deleteFile, Toast.LENGTH_LONG).show();
+                          Toast.makeText(m_context, displayFile + " deleted", Toast.LENGTH_LONG).show();
+                       } else {
+                          Toast.makeText(m_context, "Cannot delete " + displayFile, Toast.LENGTH_LONG).show();
                        }
                        if (m_Listener != null)
                        {
@@ -179,11 +209,14 @@ public class RecordManager
                     public void onClick(DialogInterface dialog, int which)
                     {
                        Selected_File_Name = input_text.getText() + "";
-                       String newFile = m_dir + "/" + Selected_File_Name;
-                       if (Selected_File_Name.isEmpty() || !createFile(newFile))
+                       String toFile = m_dir + "/" + Selected_File_Name;
+                       String displayFile = toFile.replace(m_dataDirectory, "");
+                       if (Selected_File_Name.isEmpty() || !(new File(MainActivity.RecordingFile).exists()) ||
+                               !copyFile(MainActivity.RecordingFile, toFile))
                        {
-                          Toast.makeText(m_context, "Cannot create '"
-                                  + newFile, Toast.LENGTH_LONG).show();
+                          Toast.makeText(m_context, "Cannot save " + displayFile, Toast.LENGTH_LONG).show();
+                       } else {
+                          Toast.makeText(m_context, displayFile + " saved", Toast.LENGTH_LONG).show();
                        }
                        if (m_Listener != null)
                        {
@@ -195,6 +228,81 @@ public class RecordManager
       }
 
       final AlertDialog dirsDialog = dialogBuilder.create();
+      dirsDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+
+         @Override
+         public void onShow(DialogInterface alert) {
+            ListView listView = ((AlertDialog)alert).getListView();
+            final ListAdapter originalAdapter = listView.getAdapter();
+
+            listView.setAdapter(new ListAdapter()
+            {
+               @Override
+               public int getCount() {
+                  return originalAdapter.getCount();
+               }
+
+               @Override
+               public Object getItem(int id) {
+                  return originalAdapter.getItem(id);
+               }
+
+               @Override
+               public long getItemId(int id) {
+                  return originalAdapter.getItemId(id);
+               }
+
+               @Override
+               public int getItemViewType(int id) {
+                  return originalAdapter.getItemViewType(id);
+               }
+
+               @Override
+               public View getView(int position, View convertView, ViewGroup parent) {
+                  View view = originalAdapter.getView(position, convertView, parent);
+                  TextView textView = (TextView)view;
+                  textView.setTextColor(Color.BLACK);
+                  textView.setTextSize(14);
+                  return view;
+               }
+
+               @Override
+               public int getViewTypeCount() {
+                  return originalAdapter.getViewTypeCount();
+               }
+
+               @Override
+               public boolean hasStableIds() {
+                  return originalAdapter.hasStableIds();
+               }
+
+               @Override
+               public boolean isEmpty() {
+                  return originalAdapter.isEmpty();
+               }
+               @Override
+               public void registerDataSetObserver(DataSetObserver observer) {
+                  originalAdapter.registerDataSetObserver(observer);
+               }
+
+               @Override
+               public void unregisterDataSetObserver(DataSetObserver observer) {
+                  originalAdapter.unregisterDataSetObserver(observer);
+               }
+
+               @Override
+               public boolean areAllItemsEnabled() {
+                  return originalAdapter.areAllItemsEnabled();
+               }
+
+               @Override
+               public boolean isEnabled(int position) {
+                  return originalAdapter.isEnabled(position);
+               }
+
+            });
+         }
+      });
 
       dirsDialog.show();
    }
@@ -208,15 +316,38 @@ public class RecordManager
       else{ return(false); }
    }
 
-   private boolean createFile(String newFile)
+   private boolean copyFile(String fromFile, String toFile)
    {
-      File newDirFile = new File(newFile);
+      File sourceLocation = new File(fromFile);
+      File targetLocation = new File(toFile);
 
+      InputStream in = null;
+      OutputStream out = null;
+      boolean result = false;
       try
       {
-         return newDirFile.createNewFile();
-      } catch (Exception e) {}
-      return(false);
+         in = new FileInputStream(sourceLocation);
+         out = new FileOutputStream(targetLocation);
+         byte[] buf = new byte[1024];
+         int len;
+         while ((len = in.read(buf)) > 0)
+         {
+            out.write(buf, 0, len);
+         }
+         result = true;
+      } catch (Exception e) {
+      } finally
+      {
+         try
+         {
+            if (in != null) in.close();
+            if (out != null) out.close();
+         } catch (Exception e) {
+            result = false;
+         }
+      }
+
+      return(result);
    }
 
    private boolean deleteDirFile(String deleteFile)
@@ -331,6 +462,7 @@ public class RecordManager
                                                                                          {
                                                                                             // Navigate into the new directory.
                                                                                             m_dir += "/" + newDirName;
+                                                                                            m_showIndex.add(0);
                                                                                             updateDirectory();
                                                                                          }
                                                                                          else
@@ -363,7 +495,8 @@ public class RecordManager
                                             if (!m_dir.equals(m_dataDirectory))
                                             {
                                                m_dir = m_dir.substring(0, m_dir.lastIndexOf("/"));
-                                               m_showIndex = 0;
+                                               int i = m_showIndex.size() - 1;
+                                               m_showIndex.remove(i);
                                                updateDirectory();
                                             }
                                          }
@@ -379,9 +512,10 @@ public class RecordManager
                                        @Override
                                        public void onClick(View v)
                                        {
-                                          if (m_showIndex > 0)
+                                          int i = m_showIndex.size() - 1;
+                                          if (m_showIndex.get(i) > 0)
                                           {
-                                             m_showIndex--;
+                                             m_showIndex.set(i, m_showIndex.get(i) - 1);
                                              updateDirectory();
                                           }
                                        }
@@ -397,9 +531,10 @@ public class RecordManager
                                      @Override
                                      public void onClick(View v)
                                      {
-                                        if ((MAX_SHOW_DIRS * (m_showIndex + 1)) < m_subdirs.size())
+                                        int i = m_showIndex.size() - 1;
+                                        if ((MAX_SHOW_DIRS * (m_showIndex.get(i) + 1)) < m_subdirs.size())
                                         {
-                                           m_showIndex++;
+                                           m_showIndex.set(i, m_showIndex.get(i) + 1);
                                            updateDirectory();
                                         }
                                      }
@@ -427,7 +562,8 @@ public class RecordManager
       // Set views and finish dialog builder.
       dialogBuilder.setView(titleLayout);
       dialogBuilder.setCustomTitle(operationLayout);
-      m_showIndex = 0;
+      m_showIndex = new ArrayList<Integer>();
+      m_showIndex.add(0);
       m_showdirs = new ArrayList<String>();
       m_listAdapter = createListAdapter(m_showdirs);
       updateDirectory();
@@ -441,9 +577,10 @@ public class RecordManager
    {
       m_subdirs.clear();
       m_subdirs.addAll(getDirectories(m_dir));
-      m_titleView.setText(m_dir);
+      m_titleView.setText(m_dir.replace(m_dataDirectory, "") + "/");
       m_showdirs.clear();
-      int i = MAX_SHOW_DIRS * m_showIndex;
+      int index = m_showIndex.size() - 1;
+      int i = MAX_SHOW_DIRS * m_showIndex.get(index);
       for (int j = 0; j < MAX_SHOW_DIRS && i < m_subdirs.size(); j++, i++)
       {
          m_showdirs.add(m_subdirs.get(i));
@@ -456,23 +593,17 @@ public class RecordManager
       } else {
          m_backButton.setEnabled(true);
       }
-      if (m_showIndex > 0)
+      if (m_showIndex.get(index) > 0)
       {
          m_upButton.setEnabled(true);
       } else {
          m_upButton.setEnabled(false);
       }
-      if ((MAX_SHOW_DIRS * (m_showIndex + 1)) < m_subdirs.size())
+      if ((MAX_SHOW_DIRS * (m_showIndex.get(index) + 1)) < m_subdirs.size())
       {
          m_downButton.setEnabled(true);
       } else {
          m_downButton.setEnabled(false);
-      }
-      if (m_showIndex > 0)
-      {
-         m_upButton.setEnabled(true);
-      } else {
-         m_upButton.setEnabled(false);
       }
    }
 
