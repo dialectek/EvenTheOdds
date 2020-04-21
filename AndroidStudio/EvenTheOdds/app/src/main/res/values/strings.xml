@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Even (the odds)</string>
+    <string name="message_seekbar">Setting Seekbar max to %d sec</string>
 </resources>

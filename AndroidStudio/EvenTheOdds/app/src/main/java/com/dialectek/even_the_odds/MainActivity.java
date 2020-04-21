@@ -3,339 +3,327 @@
 package com.dialectek.even_the_odds;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Bundle;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.app.ActivityCompat;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
-public class MainActivity extends AppCompatActivity
+public final class MainActivity extends AppCompatActivity
 {
-   private static final String LOG_TAG = "MainActivity";
-   private static final int    REQUEST_RECORD_AUDIO_PERMISSION = 200;
-   public static String       RecordingFile = null;
+    public static final String TAG = "MainActivity";
+    public static final int MEDIA_RES_ID = R.raw.jazz_in_paris;
 
-   private RecordButton  recordButton = null;
-   private MediaRecorder recorder     = null;
+    public static String       RecordingFile = null;
+    private Button recordButton;
 
-   private PlayButton  playButton = null;
-   private MediaPlayer player     = null;
+    private TextView mTextDebug;
+    private SeekBar mSeekbarAudio;
+    private ScrollView mScrollContainer;
+    private PlayerAdapter mPlayerAdapter;
+    private boolean mUserIsSeeking = false;
 
-   // Requesting permission to RECORD_AUDIO
-   private boolean permissionToRecordAccepted = false;
-   private         String [] permissions = { Manifest.permission.RECORD_AUDIO };
+    @Override
+    protected void onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
 
-   @Override
-   public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-   {
-      super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-      switch (requestCode)
-      {
-      case REQUEST_RECORD_AUDIO_PERMISSION:
-         permissionToRecordAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
-         break;
-      }
-      if (!permissionToRecordAccepted) { finish(); }
-   }
+        RecordingFile  = getFilesDir().getAbsolutePath() + "/audiorecording.3gp";
+        File file = new File(RecordingFile);
+        if (file.exists()) {
+            file.delete();
+        }
 
+        ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
-   private void onRecord(boolean start)
-   {
-      if (start)
-      {
-         startRecording();
-      }
-      else
-      {
-         stopRecording();
-      }
-   }
+        setContentView(R.layout.activity_main);
+        initializeUI();
+        initializeSeekbar();
+        initializePlaybackController();
+        Log.d(TAG, "onCreate: finished");
+    }
 
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
+        mPlayerAdapter.loadMedia(MEDIA_RES_ID);
+        Log.d(TAG, "onStart: create MediaPlayer");
+    }
 
-   private void onPlay(boolean start)
-   {
-      if (start)
-      {
-         startPlaying();
-      }
-      else
-      {
-         stopPlaying();
-      }
-   }
+    @Override
+    protected void onStop()
+    {
+        super.onStop();
+        if (isChangingConfigurations() && mPlayerAdapter.isPlaying()) {
+            Log.d(TAG, "onStop: don't release MediaPlayer as screen is rotating & playing");
+        } else {
+            mPlayerAdapter.release();
+            Log.d(TAG, "onStop: release MediaPlayer");
+        }
+    }
 
+    private void initializeUI()
+    {
+        // Record button.
+        recordButton = (Button) findViewById(R.id.button_record);
+        int buttonWidth = (int)((float)Resources.getSystem().getDisplayMetrics().widthPixels * 0.6f);
+        recordButton.setWidth(buttonWidth);
+        recordButton.setOnClickListener(new View.OnClickListener()
+                                      {
+                                          static final int StartColor = Color.BLACK;
+                                          static final int StopColor = Color.RED;
+                                          boolean mStartRecording = true;
+                                          MediaRecorder mRecorder;
 
-   private void startPlaying()
-   {
-      player = new MediaPlayer();
-      try
-      {
-         player.setDataSource(RecordingFile);
-         player.prepare();
-         player.start();
-      }
-      catch (IOException e)
-      {
-         Log.e(LOG_TAG, "prepare() failed");
-      }
-   }
+                                          @Override
+                                          public void onClick(View v)
+                                          {
+                                              mPlayerAdapter.reset();
+                                              if (mStartRecording)
+                                              {
+                                                  mRecorder = new MediaRecorder();
+                                                  mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                                                  mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                                                  mRecorder.setOutputFile(RecordingFile);
+                                                  mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
-
-   private void stopPlaying()
-   {
-      player.release();
-      player = null;
-   }
-
-
-   private void startRecording()
-   {
-      recorder = new MediaRecorder();
-      recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-      recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-      recorder.setOutputFile(RecordingFile);
-      recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-
-      try {
-         recorder.prepare();
-      }
-      catch (IOException e) {
-         Log.e(LOG_TAG, "prepare() failed");
-      }
-
-      recorder.start();
-   }
-
-
-   private void stopRecording()
-   {
-      recorder.stop();
-      recorder.release();
-      recorder = null;
-   }
-
-
-   class RecordButton extends AppCompatButton
-   {
-      static final int StartColor = Color.BLACK;
-      static final int StopColor = Color.RED;
-      boolean mStartRecording = true;
-
-      OnClickListener clicker = new OnClickListener()
-      {
-         public void onClick(View v)
-         {
-            onRecord(mStartRecording);
-            if (mStartRecording)
-            {
-               setTextColor(StopColor);
-               setText("Stop recording");
-            }
-            else
-            {
-               setTextColor(StartColor);
-               setText("Start recording");
-            }
-            mStartRecording = !mStartRecording;
-         }
-      };
-
-      public RecordButton(Context ctx)
-      {
-         super(ctx);
-         setText("Start recording");
-         setTextColor(StartColor);
-         setOnClickListener(clicker);
-      }
-   }
-
-   class PlayButton extends AppCompatButton
-   {
-      static final int StartColor = Color.BLACK;
-      static final int StopColor = Color.RED;
-      boolean mStartPlaying = true;
-
-      OnClickListener clicker = new OnClickListener()
-      {
-         public void onClick(View v)
-         {
-            onPlay(mStartPlaying);
-            if (mStartPlaying)
-            {
-               setTextColor(StopColor);
-               setText("Stop playing");
-            }
-            else
-            {
-               setTextColor(StartColor);
-               setText("Start playing");
-            }
-            mStartPlaying = !mStartPlaying;
-         }
-      };
-
-      public PlayButton(Context ctx)
-      {
-         super(ctx);
-         setText("Start playing");
-         setTextColor(StartColor);
-         setOnClickListener(clicker);
-      }
-   }
-
-   @Override
-   public void onCreate(Bundle savedInstanceState)
-   {
-      super.onCreate(savedInstanceState);
-
-      RecordingFile  = getFilesDir().getAbsolutePath();
-      RecordingFile += "/audiorecording.3gp";
-
-      ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
-
-      LinearLayout ll = new LinearLayout(this);
-      ll.setOrientation(LinearLayout.VERTICAL);
-      ll.setGravity(Gravity.CENTER);
-
-      // Record button.
-      recordButton = new RecordButton(this);
-      ll.addView(recordButton,
-                 new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    0));
-      int buttonWidth = (int)((float)Resources.getSystem().getDisplayMetrics().widthPixels * 0.6f);
-      recordButton.setWidth(buttonWidth);
-
-      // Play button.
-      playButton = new PlayButton(this);
-      ll.addView(playButton,
-                 new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    0));
-      playButton.setWidth(buttonWidth);
-
-      // Save.
-      Button saveButton = new Button(this);
-      saveButton.setText("Save recording");
-      ll.addView(saveButton,
-                 new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    0));
-      saveButton.setWidth(buttonWidth);
-      saveButton.setOnClickListener(new OnClickListener()
-      {
-         String m_chosen;
-
-         @Override
-         public void onClick(View v)
-         {
-            if (new File(RecordingFile).exists())
-            {
-               DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
-               String fileString = dateFormat.format(new Date()).toString() + ".3gp";
-               RecordManager.Default_File_Name = fileString;
-               RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
-                       new RecordManager.Listener() {
-                          @Override
-                          public void onChosenDir(String chosenDir) {
-                             m_chosen = chosenDir;
-                          }
-                       }
-               );
-               recordSaver.chooseFile_or_Dir();
-            } else {
-               Toast.makeText(MainActivity.this, "No recording to save", Toast.LENGTH_LONG).show();
-            }
-         }
-      }
-      );
-
-      // Browse.
-      Button browseButton = new Button(this);
-      browseButton.setText("Browse recordings");
-      ll.addView(browseButton,
-                 new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    0));
-      browseButton.setWidth(buttonWidth);
-      browseButton.setOnClickListener(new OnClickListener()
-      {
-         String m_chosen;
-
-         @Override
-         public void onClick(View v)
-         {
-            RecordManager.Default_File_Name = "";
-            RecordManager recordBrowser = new RecordManager(MainActivity.this, "Browse",
-                                               new RecordManager.Listener()
-                                               {
-                                                  @Override
-                                                  public void onChosenDir(String chosenDir)
-                                                  {
-                                                     m_chosen = chosenDir;
+                                                  try {
+                                                      mRecorder.prepare();
                                                   }
-                                               }
-                                               );
-            recordBrowser.chooseFile_or_Dir();
-         }
-      }
-      );
+                                                  catch (IOException e) {
+                                                      Log.e(TAG, "prepare() failed");
+                                                  }
 
-      setContentView(ll);
-   }
+                                                  mRecorder.start();
+                                                  recordButton.setTextColor(StopColor);
+                                                  recordButton.setText("Stop recording");
+                                              }
+                                              else
+                                              {
+                                                  mRecorder.stop();
+                                                  mRecorder.release();
+                                                  mRecorder = null;
+                                                  recordButton.setTextColor(StartColor);
+                                                  recordButton.setText("Start recording");
+                                                  mPlayerAdapter.setDataSource(RecordingFile);
+                                              }
 
+                                              mStartRecording = !mStartRecording;
+                                          }
+                                      }
+        );
 
-   @Override
-   public boolean onCreateOptionsMenu(Menu menu)
-   {
-      getMenuInflater().inflate(R.menu.main, menu);
-      return(true);
-   }
+        // Save.
+        Button saveButton = (Button) findViewById(R.id.button_save);
+        saveButton.setWidth(buttonWidth);
+        saveButton.setOnClickListener(new View.OnClickListener()
+                                      {
+                                          String m_chosen;
 
+                                          @Override
+                                          public void onClick(View v)
+                                          {
+                                              mPlayerAdapter.reset();
+                                              if (new File(RecordingFile).exists())
+                                              {
+                                                  DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
+                                                  String fileString = dateFormat.format(new Date()).toString() + ".3gp";
+                                                  RecordManager.Default_File_Name = fileString;
+                                                  RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
+                                                          new RecordManager.Listener() {
+                                                              @Override
+                                                              public void onChosenDir(String chosenDir) {
+                                                                  m_chosen = chosenDir;
+                                                              }
+                                                          }
+                                                  );
+                                                  recordSaver.chooseFile_or_Dir();
+                                              } else {
+                                                  Toast toast = Toast.makeText(MainActivity.this, "No recording to save", Toast.LENGTH_LONG);
+                                                  toast.setGravity(Gravity.CENTER, 0, 0);
+                                                  toast.show();
+                                              }
+                                          }
+                                      }
+        );
 
-   @Override
-   public void onStop()
-   {
-      super.onStop();
-      if (recorder != null)
-      {
-         recorder.release();
-         recorder = null;
-      }
+        // Browse.
+        Button browseButton = (Button) findViewById(R.id.button_browse);
+        browseButton.setWidth(buttonWidth);
+        browseButton.setOnClickListener(new View.OnClickListener()
+                                        {
+                                            String m_chosen;
 
-      if (player != null)
-      {
-         player.release();
-         player = null;
-      }
-   }
+                                            @Override
+                                            public void onClick(View v)
+                                            {
+                                                mPlayerAdapter.reset();
+                                                RecordManager.Default_File_Name = "";
+                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, "Browse",
+                                                        new RecordManager.Listener()
+                                                        {
+                                                            @Override
+                                                            public void onChosenDir(String chosenDir)
+                                                            {
+                                                                m_chosen = chosenDir;
+                                                            }
+                                                        }
+                                                );
+                                                recordBrowser.chooseFile_or_Dir();
+                                            }
+                                        }
+        );
+
+        mTextDebug = (TextView) findViewById(R.id.text_debug);
+        Button mPlayButton = (Button) findViewById(R.id.button_play);
+        Button mPauseButton = (Button) findViewById(R.id.button_pause);
+        Button mResetButton = (Button) findViewById(R.id.button_reset);
+        mSeekbarAudio = (SeekBar) findViewById(R.id.seekbar_audio);
+        mScrollContainer = (ScrollView) findViewById(R.id.scroll_container);
+
+        mPauseButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        mPlayerAdapter.pause();
+                    }
+                });
+        mPlayButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        mPlayerAdapter.play();
+                    }
+                });
+        mResetButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        mPlayerAdapter.reset();
+                    }
+                });
+    }
+
+    private void initializePlaybackController()
+    {
+        MediaPlayerHolder mMediaPlayerHolder = new MediaPlayerHolder(this);
+        Log.d(TAG, "initializePlaybackController: created MediaPlayerHolder");
+        mMediaPlayerHolder.setPlaybackInfoListener(new PlaybackListener());
+        mPlayerAdapter = mMediaPlayerHolder;
+        Log.d(TAG, "initializePlaybackController: MediaPlayerHolder progress callback set");
+    }
+
+    private void initializeSeekbar()
+    {
+        mSeekbarAudio.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    int userSelectedPosition = 0;
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                        mUserIsSeeking = true;
+                    }
+
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        if (fromUser) {
+                            userSelectedPosition = progress;
+                        }
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                        mUserIsSeeking = false;
+                        mPlayerAdapter.seekTo(userSelectedPosition);
+                    }
+                });
+    }
+
+    public class PlaybackListener extends PlaybackInfoListener
+    {
+        @Override
+        public void onDurationChanged(int duration)
+        {
+            mSeekbarAudio.setMax(duration);
+            Log.d(TAG, String.format("setPlaybackDuration: setMax(%d)", duration));
+        }
+
+        @RequiresApi(api = Build.VERSION_CODES.N)
+        @Override
+        public void onPositionChanged(int position)
+        {
+            if (!mUserIsSeeking) {
+                mSeekbarAudio.setProgress(position, true);
+                Log.d(TAG, String.format("setPlaybackPosition: setProgress(%d)", position));
+            }
+        }
+
+        @Override
+        public void onStateChanged(@State int state)
+        {
+            String stateToString = PlaybackInfoListener.convertStateToString(state);
+            onLogUpdated(String.format("onStateChanged(%s)", stateToString));
+        }
+
+        @Override
+        public void onPlaybackCompleted()
+        {
+        }
+
+        @Override
+        public void onLogUpdated(String message)
+        {
+            if (mTextDebug != null) {
+                mTextDebug.append(message);
+                mTextDebug.append("\n");
+                // Moves the scrollContainer focus to the end.
+                mScrollContainer.post(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                mScrollContainer.fullScroll(ScrollView.FOCUS_DOWN);
+                            }
+                        });
+            }
+        }
+    }
+
+    // Requesting permission to RECORD_AUDIO
+    private static final int    REQUEST_RECORD_AUDIO_PERMISSION = 200;
+    private boolean permissionToRecordAccepted = false;
+    private         String [] permissions = { Manifest.permission.RECORD_AUDIO };
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+    {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode)
+        {
+            case REQUEST_RECORD_AUDIO_PERMISSION:
+                permissionToRecordAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                break;
+        }
+        if (!permissionToRecordAccepted) { finish(); }
+    }
 }

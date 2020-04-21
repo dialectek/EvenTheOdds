@@ -2,28 +2,13 @@
 
 package com.dialectek.even_the_odds;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.database.DataSetObserver;
 import android.graphics.Color;
-import android.os.Environment;
-import android.os.FileUtils;
 import android.text.Editable;
-import android.text.method.ScrollingMovementMethod;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,11 +19,19 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.view.ContextThemeWrapper;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class RecordManager
 {
@@ -65,7 +58,7 @@ public class RecordManager
    Button m_upButton                          = null;
    Button m_downButton                        = null;
 
-   // Callback interface for selected directory.
+   // Callback interface for selected file/directory.
    public interface Listener
    {
       public void onChosenDir(String chosenDir);
@@ -160,15 +153,24 @@ public class RecordManager
                        Selected_File_Name = input_text.getText() + "";
                        String fromFile = m_dir + "/" + Selected_File_Name;
                        String displayFile = fromFile.replace(m_dataDirectory, "");
-                       if (Selected_File_Name.isEmpty() || !copyFile(fromFile, MainActivity.RecordingFile))
+                       if (Selected_File_Name.isEmpty())
                        {
-                          Toast.makeText(m_context, "Cannot select " + displayFile, Toast.LENGTH_LONG).show();
+                          Toast toast = Toast.makeText(m_context, "Please select a file", Toast.LENGTH_LONG);
+                          toast.setGravity(Gravity.CENTER, 0, 0);
+                          toast.show();
                        } else {
-                          Toast.makeText(m_context, displayFile + " selected", Toast.LENGTH_LONG).show();
-                       }
-                       if (m_Listener != null)
-                       {
-                          m_Listener.onChosenDir(m_dir + "/" + Selected_File_Name);
+                          if (!copyFile(fromFile, MainActivity.RecordingFile)) {
+                             Toast toast = Toast.makeText(m_context, "Cannot copy " + displayFile, Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          } else {
+                             if (m_Listener != null) {
+                                m_Listener.onChosenDir(fromFile);
+                             }
+                             Toast toast = Toast.makeText(m_context, displayFile + " selected", Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          }
                        }
                     }
                  }
@@ -189,13 +191,17 @@ public class RecordManager
                        }
                        if (deleteDirFile(deleteFile))
                        {
-                          Toast.makeText(m_context, displayFile + " deleted", Toast.LENGTH_LONG).show();
+                          if (m_Listener != null)
+                          {
+                             m_Listener.onChosenDir(deleteFile);
+                          }
+                          Toast toast = Toast.makeText(m_context, displayFile + " deleted", Toast.LENGTH_LONG);
+                          toast.setGravity(Gravity.CENTER, 0, 0);
+                          toast.show();
                        } else {
-                          Toast.makeText(m_context, "Cannot delete " + displayFile, Toast.LENGTH_LONG).show();
-                       }
-                       if (m_Listener != null)
-                       {
-                          m_Listener.onChosenDir(m_dir + "/" + Selected_File_Name);
+                          Toast toast = Toast.makeText(m_context, "Cannot delete " + displayFile, Toast.LENGTH_LONG);
+                          toast.setGravity(Gravity.CENTER, 0, 0);
+                          toast.show();
                        }
                     }
                  }
@@ -214,13 +220,17 @@ public class RecordManager
                        if (Selected_File_Name.isEmpty() || !(new File(MainActivity.RecordingFile).exists()) ||
                                !copyFile(MainActivity.RecordingFile, toFile))
                        {
-                          Toast.makeText(m_context, "Cannot save " + displayFile, Toast.LENGTH_LONG).show();
+                          Toast toast = Toast.makeText(m_context, "Cannot save " + displayFile, Toast.LENGTH_LONG);
+                          toast.setGravity(Gravity.CENTER, 0, 0);
+                          toast.show();
                        } else {
-                          Toast.makeText(m_context, displayFile + " saved", Toast.LENGTH_LONG).show();
-                       }
-                       if (m_Listener != null)
-                       {
-                          m_Listener.onChosenDir(m_dir + "/" + Selected_File_Name);
+                          if (m_Listener != null)
+                          {
+                             m_Listener.onChosenDir(toFile);
+                          }
+                          Toast toast = Toast.makeText(m_context, displayFile + " saved", Toast.LENGTH_LONG);
+                          toast.setGravity(Gravity.CENTER, 0, 0);
+                          toast.show();
                        }
                     }
                  }
@@ -467,8 +477,10 @@ public class RecordManager
                                                                                          }
                                                                                          else
                                                                                          {
-                                                                                            Toast.makeText(m_context, "Cannot create '"
-                                                                                                           + newDirName + "' folder", Toast.LENGTH_LONG).show();
+                                                                                            Toast toast = Toast.makeText(m_context, "Cannot create '"
+                                                                                                           + newDirName + "' folder", Toast.LENGTH_LONG);
+                                                                                            toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                                            toast.show();
                                                                                          }
                                                                                       }
                                                                                    }
