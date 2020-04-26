@@ -24,7 +24,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -35,9 +39,10 @@ public final class MainActivity extends AppCompatActivity
     public static final int MEDIA_RES_ID = R.raw.jazz_in_paris;
 
     public static String       RecordingFile = null;
-    private Button recordButton;
-
-    private TextView mTextDebug;
+    private String m_dataDirectory;
+    private Button mRecordButton;
+    private Button mNextButton;
+    private TextView mTextLog;
     private SeekBar mSeekbarAudio;
     private ScrollView mScrollContainer;
     private PlayerAdapter mPlayerAdapter;
@@ -48,11 +53,20 @@ public final class MainActivity extends AppCompatActivity
     {
         super.onCreate(savedInstanceState);
 
-        RecordingFile  = getFilesDir().getAbsolutePath() + "/audiorecording.3gp";
+        String rootDir = getFilesDir().getAbsolutePath();
+        try
+        {
+            rootDir = new File(rootDir).getCanonicalPath();
+        }
+        catch (IOException ioe)
+        {
+        }
+        RecordingFile  = rootDir + "/recording.3gp";
         File file = new File(RecordingFile);
         if (file.exists()) {
             file.delete();
         }
+        m_dataDirectory = rootDir + "/content";
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
@@ -86,10 +100,10 @@ public final class MainActivity extends AppCompatActivity
     private void initializeUI()
     {
         // Record button.
-        recordButton = (Button) findViewById(R.id.button_record);
+        mRecordButton = (Button) findViewById(R.id.button_record);
         int buttonWidth = (int)((float)Resources.getSystem().getDisplayMetrics().widthPixels * 0.6f);
-        recordButton.setWidth(buttonWidth);
-        recordButton.setOnClickListener(new View.OnClickListener()
+        mRecordButton.setWidth(buttonWidth);
+        mRecordButton.setOnClickListener(new View.OnClickListener()
                                       {
                                           static final int StartColor = Color.BLACK;
                                           static final int StopColor = Color.RED;
@@ -116,16 +130,16 @@ public final class MainActivity extends AppCompatActivity
                                                   }
 
                                                   mRecorder.start();
-                                                  recordButton.setTextColor(StopColor);
-                                                  recordButton.setText("Stop recording");
+                                                  mRecordButton.setTextColor(StopColor);
+                                                  mRecordButton.setText("Stop recording");
                                               }
                                               else
                                               {
                                                   mRecorder.stop();
                                                   mRecorder.release();
                                                   mRecorder = null;
-                                                  recordButton.setTextColor(StartColor);
-                                                  recordButton.setText("Start recording");
+                                                  mRecordButton.setTextColor(StartColor);
+                                                  mRecordButton.setText("Start recording");
                                                   mPlayerAdapter.setDataSource(RecordingFile);
                                               }
 
@@ -139,7 +153,7 @@ public final class MainActivity extends AppCompatActivity
         saveButton.setWidth(buttonWidth);
         saveButton.setOnClickListener(new View.OnClickListener()
                                       {
-                                          String m_chosen;
+                                          String m_saved;
 
                                           @Override
                                           public void onClick(View v)
@@ -150,11 +164,18 @@ public final class MainActivity extends AppCompatActivity
                                                   DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
                                                   String fileString = dateFormat.format(new Date()).toString() + ".3gp";
                                                   RecordManager.Default_File_Name = fileString;
-                                                  RecordManager recordSaver = new RecordManager(MainActivity.this, "Save",
+                                                  RecordManager recordSaver = new RecordManager(MainActivity.this, m_dataDirectory,"Save",
                                                           new RecordManager.Listener() {
                                                               @Override
-                                                              public void onChosenDir(String chosenDir) {
-                                                                  m_chosen = chosenDir;
+                                                              public void onSave(String savedFile) {
+                                                                  m_saved = savedFile;
+                                                                  logMessage(savedFile.replace(m_dataDirectory, "") + " saved.");
+                                                              }
+                                                              @Override
+                                                              public void onDelete(String deletedFile) {
+                                                              }
+                                                              @Override
+                                                              public void onSelect(String selectedFile) {
                                                               }
                                                           }
                                                   );
@@ -173,20 +194,25 @@ public final class MainActivity extends AppCompatActivity
         browseButton.setWidth(buttonWidth);
         browseButton.setOnClickListener(new View.OnClickListener()
                                         {
-                                            String m_chosen;
+                                            String m_selected;
 
                                             @Override
                                             public void onClick(View v)
                                             {
                                                 mPlayerAdapter.reset();
                                                 RecordManager.Default_File_Name = "";
-                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, "Browse",
-                                                        new RecordManager.Listener()
-                                                        {
+                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory,"Browse",
+                                                        new RecordManager.Listener() {
                                                             @Override
-                                                            public void onChosenDir(String chosenDir)
-                                                            {
-                                                                m_chosen = chosenDir;
+                                                            public void onSave(String savedFile) {
+                                                            }
+                                                            @Override
+                                                            public void onDelete(String deletedFile) {
+                                                           }
+                                                            @Override
+                                                            public void onSelect(String selectedFile) {
+                                                                m_selected = selectedFile;
+                                                                logMessage(selectedFile.replace(m_dataDirectory, "") + " selected.");
                                                             }
                                                         }
                                                 );
@@ -195,10 +221,43 @@ public final class MainActivity extends AppCompatActivity
                                         }
         );
 
-        mTextDebug = (TextView) findViewById(R.id.text_debug);
+        // Delete.
+        Button deleteButton = (Button) findViewById(R.id.button_delete);
+        deleteButton.setWidth(buttonWidth);
+        deleteButton.setOnClickListener(new View.OnClickListener()
+                                        {
+                                            String m_deleted;
+
+                                            @Override
+                                            public void onClick(View v)
+                                            {
+                                                mPlayerAdapter.reset();
+                                                RecordManager.Default_File_Name = "";
+                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory,"Delete",
+                                                        new RecordManager.Listener() {
+                                                            @Override
+                                                            public void onSave(String savedFile) {
+                                                            }
+                                                            @Override
+                                                            public void onDelete(String deletedFile) {
+                                                                m_deleted = deletedFile;
+                                                                logMessage(deletedFile.replace(m_dataDirectory, "") + " deleted.");
+                                                            }
+                                                            @Override
+                                                            public void onSelect(String selectedFile) {
+                                                             }
+                                                        }
+                                                );
+                                                recordBrowser.chooseFile_or_Dir();
+                                            }
+                                        }
+        );
+
+        mTextLog = (TextView) findViewById(R.id.text_log);
         Button mPlayButton = (Button) findViewById(R.id.button_play);
         Button mPauseButton = (Button) findViewById(R.id.button_pause);
-        Button mResetButton = (Button) findViewById(R.id.button_reset);
+        mNextButton = (Button) findViewById(R.id.button_next);
+        mNextButton.setEnabled(false);
         mSeekbarAudio = (SeekBar) findViewById(R.id.seekbar_audio);
         mScrollContainer = (ScrollView) findViewById(R.id.scroll_container);
 
@@ -214,13 +273,6 @@ public final class MainActivity extends AppCompatActivity
                     @Override
                     public void onClick(View view) {
                         mPlayerAdapter.play();
-                    }
-                });
-        mResetButton.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        mPlayerAdapter.reset();
                     }
                 });
     }
@@ -294,18 +346,24 @@ public final class MainActivity extends AppCompatActivity
         @Override
         public void onLogUpdated(String message)
         {
-            if (mTextDebug != null) {
-                mTextDebug.append(message);
-                mTextDebug.append("\n");
-                // Moves the scrollContainer focus to the end.
-                mScrollContainer.post(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                mScrollContainer.fullScroll(ScrollView.FOCUS_DOWN);
-                            }
-                        });
-            }
+            //logMessage(message);
+        }
+    }
+
+    // Log message.
+    public void logMessage(String message)
+    {
+        if (mTextLog != null) {
+            mTextLog.append(message);
+            mTextLog.append("\n");
+            // Moves the scrollContainer focus to the end.
+            mScrollContainer.post(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            mScrollContainer.fullScroll(ScrollView.FOCUS_DOWN);
+                        }
+                    });
         }
     }
 
@@ -325,5 +383,40 @@ public final class MainActivity extends AppCompatActivity
                 break;
         }
         if (!permissionToRecordAccepted) { finish(); }
+    }
+
+    // Copy file.
+    public static boolean copyFile(String fromFile, String toFile)
+    {
+        File sourceLocation = new File(fromFile);
+        File targetLocation = new File(toFile);
+
+        InputStream in = null;
+        OutputStream out = null;
+        boolean result = false;
+        try
+        {
+            in = new FileInputStream(sourceLocation);
+            out = new FileOutputStream(targetLocation);
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0)
+            {
+                out.write(buf, 0, len);
+            }
+            result = true;
+        } catch (Exception e) {
+        } finally
+        {
+            try
+            {
+                if (in != null) in.close();
+                if (out != null) out.close();
+            } catch (Exception e) {
+                result = false;
+            }
+        }
+
+        return(result);
     }
 }

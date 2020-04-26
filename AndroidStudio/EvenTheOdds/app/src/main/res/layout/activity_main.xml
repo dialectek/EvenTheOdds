@@ -33,6 +33,13 @@
                 android:layout_weight="1"
                 android:text="Browse recordings"/>
 
+        <Button
+                android:id="@+id/button_delete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Delete recordings"/>
+
     </LinearLayout>
 
     <ScrollView
@@ -43,7 +50,7 @@
             android:layout_weight="1">
 
         <TextView
-                android:id="@+id/text_debug"
+                android:id="@+id/text_log"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
@@ -81,11 +88,11 @@
                 android:text="Pause"/>
 
         <Button
-                android:id="@+id/button_reset"
+                android:id="@+id/button_next"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Reset"/>
+                android:text="Next"/>
 
     </LinearLayout>
 

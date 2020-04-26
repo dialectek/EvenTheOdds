@@ -9,6 +9,7 @@ import android.content.DialogInterface.OnClickListener;
 import android.database.DataSetObserver;
 import android.graphics.Color;
 import android.text.Editable;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,15 +20,12 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -35,16 +33,22 @@ import java.util.List;
 
 public class RecordManager
 {
-   private int      Browse          = 0;
-   private int      Save            = 1;
+   private final int      Save            = 0;
+   private final int      Browse          = 1;
+   private final int      Delete          = 2;
    private int      Select_type     = Save;
    private String   m_dataDirectory = "";
    private Context  m_context;
    private TextView m_operationView;
    private TextView m_titleView;
+   private EditText m_input_text;
    public static String    Default_File_Name  = "";
    private String   Selected_File_Name = Default_File_Name;
-   private EditText input_text;
+   private Button m_searchButton;
+   private TextView m_searchView;
+   private EditText m_search_input_text;
+   private ArrayList<String> m_search_results;
+   private int m_search_index;
 
    private String               m_dir         = "";
    private List<String>         m_subdirs     = null;
@@ -61,28 +65,23 @@ public class RecordManager
    // Callback interface for selected file/directory.
    public interface Listener
    {
-      public void onChosenDir(String chosenDir);
+      public void onSave(String fileName);
+      public void onDelete(String fileName);
+      public void onSelect(String filename);
    }
 
-   public RecordManager(Context context, String record_select_type, Listener listener)
+   public RecordManager(Context context, String dataDirectory, String record_select_type, Listener listener)
    {
-      if (record_select_type.equals("Browse")) { Select_type = Browse; }
-      else if (record_select_type.equals("Save")) { Select_type = Save; }
+      if (record_select_type.equals("Save")) { Select_type = Save; }
+      else if (record_select_type.equals("Browse")) { Select_type = Browse; }
+      else if (record_select_type.equals("Delete")) { Select_type = Delete; }
       else{ Select_type = Browse; }
 
       m_context       = context;
-      m_dataDirectory = context.getFilesDir().getAbsolutePath() + "/content/";
+      m_dataDirectory = dataDirectory;
       File datadir = new File(m_dataDirectory);
       if (!datadir.exists()) datadir.mkdir();
       m_Listener      = listener;
-
-      try
-      {
-         m_dataDirectory = new File(m_dataDirectory).getCanonicalPath();
-      }
-      catch (IOException ioe)
-      {
-      }
    }
 
 
@@ -127,13 +126,16 @@ public class RecordManager
             if (sel.charAt(sel.length() - 1) == '/') { sel = sel.substring(0, sel.length() - 1); }
 
             m_dir += "/" + sel;
-            Selected_File_Name = Default_File_Name;
-
             if ((new File(m_dir).isFile()))
             {
                m_dir = m_dir_old;
-               Selected_File_Name = sel;
+               if (Select_type != Save) {
+                  Selected_File_Name = sel;
+               }
             } else {
+               if (Select_type != Save) {
+                  Selected_File_Name = "";
+               }
                m_showIndex.add(0);
             }
 
@@ -141,104 +143,112 @@ public class RecordManager
          }
       }
 
-      AlertDialog.Builder dialogBuilder = createDirectoryChooserDialog(dir, new Listener());
+      AlertDialog.Builder dialogBuilder = createOperationDialog(dir, new Listener());
 
-      if (Select_type == Browse)
+      switch (Select_type)
       {
-         dialogBuilder.setPositiveButton("Select", new OnClickListener()
-                 {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which)
+         case Save:
+            dialogBuilder.setPositiveButton("OK", new OnClickListener()
                     {
-                       Selected_File_Name = input_text.getText() + "";
-                       String fromFile = m_dir + "/" + Selected_File_Name;
-                       String displayFile = fromFile.replace(m_dataDirectory, "");
-                       if (Selected_File_Name.isEmpty())
+                       @Override
+                       public void onClick(DialogInterface dialog, int which)
                        {
-                          Toast toast = Toast.makeText(m_context, "Please select a file", Toast.LENGTH_LONG);
-                          toast.setGravity(Gravity.CENTER, 0, 0);
-                          toast.show();
-                       } else {
-                          if (!copyFile(fromFile, MainActivity.RecordingFile)) {
-                             Toast toast = Toast.makeText(m_context, "Cannot copy " + displayFile, Toast.LENGTH_LONG);
+                          Selected_File_Name = m_input_text.getText() + "";
+                          String toFile = m_dir + "/" + Selected_File_Name;
+                          String displayFile = toFile.replace(m_dataDirectory, "");
+                          if (Selected_File_Name.isEmpty() || !(new File(MainActivity.RecordingFile).exists()))
+                          {
+                             Toast toast = Toast.makeText(m_context, "Missing recording", Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          } else if (new File(toFile).exists()) {
+                             Toast toast = Toast.makeText(m_context, "Cannot overwrite existing file " + displayFile, Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          } else if (!MainActivity.copyFile(MainActivity.RecordingFile, toFile)) {
+                             Toast toast = Toast.makeText(m_context, "Cannot copy recording " + displayFile, Toast.LENGTH_LONG);
                              toast.setGravity(Gravity.CENTER, 0, 0);
                              toast.show();
                           } else {
-                             if (m_Listener != null) {
-                                m_Listener.onChosenDir(fromFile);
+                             if (m_Listener != null)
+                             {
+                                m_Listener.onSave(toFile);
                              }
-                             Toast toast = Toast.makeText(m_context, displayFile + " selected", Toast.LENGTH_LONG);
+                          }
+                       }
+                    }
+            ).setNegativeButton("Cancel", null);
+         break;
+
+         case Browse:
+            dialogBuilder.setPositiveButton("Select", new OnClickListener()
+                    {
+                       @Override
+                       public void onClick(DialogInterface dialog, int which)
+                       {
+                          Selected_File_Name = m_input_text.getText() + "";
+                          String selectedFile = m_dir + "/" + Selected_File_Name;
+                          if (new File(selectedFile).exists())
+                          {
+                             if (m_Listener != null)
+                             {
+                                m_Listener.onSelect(selectedFile);
+                             }
+                          } else {
+                             String displayFile = selectedFile.replace(m_dataDirectory, "");
+                             Toast toast = Toast.makeText(m_context, displayFile + "  does not exist", Toast.LENGTH_LONG);
                              toast.setGravity(Gravity.CENTER, 0, 0);
                              toast.show();
                           }
                        }
                     }
-                 }
-         );
-         dialogBuilder.setNegativeButton("Delete", new OnClickListener()
-                 {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which)
+            ).setNegativeButton("Cancel", null);
+            break;
+
+         case Delete:
+            dialogBuilder.setPositiveButton("Delete", new OnClickListener()
                     {
-                       String deleteFile = m_dir;
-                       Selected_File_Name = input_text.getText() + "";
-                       String displayFile;
-                       if (!Selected_File_Name.isEmpty()) {
-                          deleteFile += "/" + Selected_File_Name;
-                          displayFile = deleteFile.replace(m_dataDirectory, "");
-                       } else {
-                          displayFile = deleteFile.replace(m_dataDirectory, "") + "/";
-                       }
-                       if (deleteDirFile(deleteFile))
+                       @Override
+                       public void onClick(DialogInterface dialog, int which)
                        {
-                          if (m_Listener != null)
+                          Selected_File_Name = m_input_text.getText() + "";
+                          String deleteFile = m_dir + "/" + Selected_File_Name;
+                          File delFile = new File(deleteFile);
+                          String displayFile = deleteFile.replace(m_dataDirectory, "");
+                          if ((m_dataDirectory + "/").equals(deleteFile))
                           {
-                             m_Listener.onChosenDir(deleteFile);
+                             Toast toast = Toast.makeText(m_context, "Cannot delete root folder", Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          } else if (!delFile.exists())
+                          {
+                             Toast toast = Toast.makeText(m_context, displayFile + " does not exist", Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          } else if (delFile.isDirectory() && delFile.listFiles().length > 0)
+                          {
+                             Toast toast = Toast.makeText(m_context, displayFile + " must be empty", Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          } else if (delFile.delete())
+                          {
+                             if (m_Listener != null)
+                             {
+                                m_Listener.onDelete(deleteFile);
+                             }
+                          } else {
+                             Toast toast = Toast.makeText(m_context, "Cannot delete " + displayFile, Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
                           }
-                          Toast toast = Toast.makeText(m_context, displayFile + " deleted", Toast.LENGTH_LONG);
-                          toast.setGravity(Gravity.CENTER, 0, 0);
-                          toast.show();
-                       } else {
-                          Toast toast = Toast.makeText(m_context, "Cannot delete " + displayFile, Toast.LENGTH_LONG);
-                          toast.setGravity(Gravity.CENTER, 0, 0);
-                          toast.show();
                        }
                     }
-                 }
-         );
-         dialogBuilder.setNeutralButton("Cancel", null);
-      } else {
-         // Save.
-         dialogBuilder.setPositiveButton("OK", new OnClickListener()
-                 {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which)
-                    {
-                       Selected_File_Name = input_text.getText() + "";
-                       String toFile = m_dir + "/" + Selected_File_Name;
-                       String displayFile = toFile.replace(m_dataDirectory, "");
-                       if (Selected_File_Name.isEmpty() || !(new File(MainActivity.RecordingFile).exists()) ||
-                               !copyFile(MainActivity.RecordingFile, toFile))
-                       {
-                          Toast toast = Toast.makeText(m_context, "Cannot save " + displayFile, Toast.LENGTH_LONG);
-                          toast.setGravity(Gravity.CENTER, 0, 0);
-                          toast.show();
-                       } else {
-                          if (m_Listener != null)
-                          {
-                             m_Listener.onChosenDir(toFile);
-                          }
-                          Toast toast = Toast.makeText(m_context, displayFile + " saved", Toast.LENGTH_LONG);
-                          toast.setGravity(Gravity.CENTER, 0, 0);
-                          toast.show();
-                       }
-                    }
-                 }
-         ).setNegativeButton("Cancel", null);
+            ).setNegativeButton("Cancel", null);
+            break;
       }
 
-      final AlertDialog dirsDialog = dialogBuilder.create();
-      dirsDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+      final AlertDialog operationDialog = dialogBuilder.create();
+      operationDialog.setOnShowListener(new DialogInterface.OnShowListener() {
 
          @Override
          public void onShow(DialogInterface alert) {
@@ -314,75 +324,7 @@ public class RecordManager
          }
       });
 
-      dirsDialog.show();
-   }
-
-
-   private boolean createSubDir(String newDir)
-   {
-      File newDirFile = new File(newDir);
-
-      if (!newDirFile.exists()) { return(newDirFile.mkdir()); }
-      else{ return(false); }
-   }
-
-   private boolean copyFile(String fromFile, String toFile)
-   {
-      File sourceLocation = new File(fromFile);
-      File targetLocation = new File(toFile);
-
-      InputStream in = null;
-      OutputStream out = null;
-      boolean result = false;
-      try
-      {
-         in = new FileInputStream(sourceLocation);
-         out = new FileOutputStream(targetLocation);
-         byte[] buf = new byte[1024];
-         int len;
-         while ((len = in.read(buf)) > 0)
-         {
-            out.write(buf, 0, len);
-         }
-         result = true;
-      } catch (Exception e) {
-      } finally
-      {
-         try
-         {
-            if (in != null) in.close();
-            if (out != null) out.close();
-         } catch (Exception e) {
-            result = false;
-         }
-      }
-
-      return(result);
-   }
-
-   private boolean deleteDirFile(String deleteFile)
-   {
-      if (m_dataDirectory.equals(deleteFile))
-      {
-         return false;
-      }
-
-      File dirFile = new File(deleteFile);
-
-      if (!dirFile.exists())
-      {
-         return(false);
-      }
-
-      if (dirFile.isDirectory())
-      {
-         if (dirFile.listFiles().length > 0)
-         {
-            return false;
-         }
-      }
-
-      return dirFile.delete();
+      operationDialog.show();
    }
 
    private List<String> getDirectories(String dir)
@@ -423,9 +365,8 @@ public class RecordManager
       return(dirs);
    }
 
-
-   /// Dialog definition.
-   private AlertDialog.Builder createDirectoryChooserDialog(String title,
+   // Dialog definition.
+   private AlertDialog.Builder createOperationDialog(String title,
                                                             DialogInterface.OnClickListener onClickListener)
    {
       AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(m_context);
@@ -433,12 +374,22 @@ public class RecordManager
       m_operationView = new TextView(m_context);
       m_operationView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
-      if (Select_type == Browse) { m_operationView.setText("Browse:"); }
-      if (Select_type == Save) { m_operationView.setText("Save:"); }
+      switch(Select_type) {
+         case Save:
+            m_operationView.setText("Save:");
+            break;
+         case Browse:
+            m_operationView.setText("Browse:");
+            break;
+         case Delete:
+            m_operationView.setText("Delete:");
+            break;
+      }
 
       m_operationView.setGravity(Gravity.CENTER_VERTICAL);
       m_operationView.setBackgroundColor(-12303292);
       m_operationView.setTextColor(m_context.getResources().getColor(android.R.color.white));
+      m_operationView.setTextSize(18);
 
       LinearLayout operationLayout = new LinearLayout(m_context);
       operationLayout.setOrientation(LinearLayout.VERTICAL);
@@ -459,16 +410,22 @@ public class RecordManager
 
                                                // Show new folder name input dialog
                                                new AlertDialog.Builder(m_context).
-                                                  setTitle("New Folder Name").
+                                                  setTitle("Folder name:").
                                                   setView(input).setPositiveButton("OK", new DialogInterface.OnClickListener()
                                                                                    {
                                                                                       public void onClick(DialogInterface dialog, int whichButton)
                                                                                       {
                                                                                          Editable newDir = input.getText();
                                                                                          String newDirName = newDir.toString();
-
-                                                                                         // Create new directory.
-                                                                                         if (createSubDir(m_dir + "/" + newDirName))
+                                                                                         String newDirPath = m_dir + "/" + newDirName;
+                                                                                         File newDirFile = new File(newDirPath);
+                                                                                         if (newDirFile.exists())
+                                                                                         {
+                                                                                            Toast toast = Toast.makeText(m_context,
+                                                                                                    newDirName + " exists", Toast.LENGTH_LONG);
+                                                                                            toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                                            toast.show();
+                                                                                         } else if (newDirFile.mkdir())
                                                                                          {
                                                                                             // Navigate into the new directory.
                                                                                             m_dir += "/" + newDirName;
@@ -491,6 +448,53 @@ public class RecordManager
          operationLayout.addView(newDirButton);
       }
 
+      if (Select_type == Browse)
+      {
+         // Create Search button.
+         Button searchButton = new Button(m_context);
+         searchButton.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+         searchButton.setText("Search");
+         searchButton.setOnClickListener(new View.OnClickListener()
+                                         {
+                                            @Override
+                                            public void onClick(View v)
+                                            {
+
+                                               // Show search dialog
+                                               createSearchDialog().
+                                                       setPositiveButton("OK", new DialogInterface.OnClickListener()
+                                                       {
+                                                          public void onClick(DialogInterface dialog, int whichButton) {
+                                                             if (m_search_results != null) {
+                                                                m_dir = m_search_results.get(m_search_index);
+                                                                File dirfile = new File(m_dir);
+                                                                if ((new File(m_dir).isFile())) {
+                                                                   Selected_File_Name = dirfile.getName();
+                                                                   m_dir = dirfile.getParent();
+                                                                } else {
+                                                                   Selected_File_Name = "";
+                                                                }
+                                                                int c = m_dir.replace(m_dataDirectory, "").split("/").length;
+                                                                m_showIndex.clear();
+                                                                for (int i = 0; i < c; i++)
+                                                                {
+                                                                   m_showIndex.add(0);
+                                                                }
+                                                                updateDirectory();
+                                                             } else {
+                                                                Toast toast = Toast.makeText(m_context, "No search results", Toast.LENGTH_LONG);
+                                                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                toast.show();
+                                                             }
+                                                          }
+                                                       }
+                                               ).setNegativeButton("Cancel", null).show();
+                                            }
+                                         }
+         );
+         operationLayout.addView(searchButton);
+      }
+
       // Create navigation buttons.
       LinearLayout navigationLayout = new LinearLayout(m_context);
       navigationLayout.setOrientation(LinearLayout.HORIZONTAL);
@@ -509,6 +513,10 @@ public class RecordManager
                                                m_dir = m_dir.substring(0, m_dir.lastIndexOf("/"));
                                                int i = m_showIndex.size() - 1;
                                                m_showIndex.remove(i);
+                                               if (Select_type != Save)
+                                               {
+                                                  Selected_File_Name = "";
+                                               }
                                                updateDirectory();
                                             }
                                          }
@@ -562,14 +570,27 @@ public class RecordManager
       m_titleView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
       m_titleView.setBackgroundColor(-12303292);           // dark gray -12303292
       m_titleView.setTextColor(m_context.getResources().getColor(android.R.color.white));
+      m_titleView.setTextSize(18);
       m_titleView.setGravity(Gravity.CENTER_VERTICAL);
       m_titleView.setText(title);
       titleLayout.addView(m_titleView);
 
-      // Add inpuut text.
-      input_text = new EditText(m_context);
-      input_text.setText(Default_File_Name);
-      titleLayout.addView(input_text);
+      // Add input text.
+      m_input_text = new EditText(m_context);
+      m_input_text.setText(Default_File_Name);
+      if (Select_type != Save) {
+         m_input_text.setInputType(InputType.TYPE_NULL);
+         m_input_text.setFocusable(false);
+         m_input_text.setFocusableInTouchMode(false);
+         m_input_text.setOnClickListener(new View.OnClickListener() {
+                                                   @Override
+                                                   public void onClick(View v) {
+                                                      m_input_text.setText("");
+                                                   }
+                                                }
+         );
+      }
+      titleLayout.addView(m_input_text);
 
       // Set views and finish dialog builder.
       dialogBuilder.setView(titleLayout);
@@ -584,6 +605,72 @@ public class RecordManager
       return(dialogBuilder);
    }
 
+   // Search dialog definition.
+   private AlertDialog.Builder createSearchDialog()
+   {
+      AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(m_context);
+      LinearLayout searchLayout = new LinearLayout(m_context);
+      searchLayout.setOrientation(LinearLayout.VERTICAL);
+      m_search_results = null;
+      m_searchButton = new Button(m_context);
+      m_searchButton.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+      m_searchButton.setText("Search");
+      m_searchButton.setOnClickListener(new View.OnClickListener()
+                                      {
+                                         @Override
+                                         public void onClick(View v)
+                                         {
+                                            if (m_search_results == null)
+                                            {
+                                               m_search_results = searchPaths(m_dataDirectory,m_search_input_text.getText() + "");
+                                               m_search_index = 0;
+                                               m_search_input_text.setEnabled(false);
+                                               if (m_search_results == null)
+                                               {
+                                                  m_searchButton.setEnabled(false);
+                                                  m_searchView.setText("No match");
+                                               } else {
+                                                  if (m_search_index == m_search_results.size() - 1)
+                                                  {
+                                                     m_searchButton.setEnabled(false);
+                                                  } else {
+                                                     m_searchButton.setText("Next");
+                                                  }
+                                                  String path = m_search_results.get(0);
+                                                  m_searchView.setText(path.replace(m_dataDirectory, ""));
+                                               }
+                                            } else {
+                                               if (m_search_index < m_search_results.size() - 1) {
+                                                  m_search_index++;
+                                                  if (m_search_index == m_search_results.size() - 1)
+                                                  {
+                                                     m_searchButton.setEnabled(false);
+                                                  }
+                                                  String path = m_search_results.get(m_search_index);
+                                                  m_searchView.setText(path.replace(m_dataDirectory, ""));
+                                               }
+                                            }
+                                         }
+                                      }
+      );
+      searchLayout.addView(m_searchButton);
+      LinearLayout titleLayout = new LinearLayout(m_context);
+      titleLayout.setOrientation(LinearLayout.VERTICAL);
+      m_searchView = new TextView(m_context);
+      m_searchView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+      m_searchView.setBackgroundColor(-12303292);           // dark gray -12303292
+      m_searchView.setTextColor(m_context.getResources().getColor(android.R.color.white));
+      m_searchView.setTextSize(18);
+      m_searchView.setGravity(Gravity.CENTER_VERTICAL);
+      m_searchView.setText("File or folder name:");
+      titleLayout.addView(m_searchView);
+      m_search_input_text = new EditText(m_context);
+      titleLayout.addView(m_search_input_text);
+
+      dialogBuilder.setView(titleLayout);
+      dialogBuilder.setCustomTitle(searchLayout);
+      return(dialogBuilder);
+   }
 
    private void updateDirectory()
    {
@@ -598,7 +685,7 @@ public class RecordManager
          m_showdirs.add(m_subdirs.get(i));
       }
       m_listAdapter.notifyDataSetChanged();
-      input_text.setText(Selected_File_Name);
+      m_input_text.setText(Selected_File_Name);
       if (m_dir.equals(m_dataDirectory))
       {
          m_backButton.setEnabled(false);
@@ -639,5 +726,54 @@ public class RecordManager
                 }
              }
              );
+   }
+
+   // Search for folders and files that match given expression.
+   public ArrayList<String> searchPaths(String dir, String expr) {
+      if (expr.isEmpty())
+      {
+         return null;
+      }
+      ArrayList<String> results = new ArrayList<String>();
+      File[] files = new File(dir).listFiles();
+      for(File f:files) {
+         String name = f.getName();
+         boolean match = false;
+         try {
+            match = name.matches(expr);
+         } catch (Exception e)
+         {
+            Toast toast = Toast.makeText(m_context, "Invalid folder or file name", Toast.LENGTH_LONG);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+            return null;
+         }
+         if(match) {
+            try {
+               results.add(f.getCanonicalPath());
+            } catch (Exception e) {
+               Toast toast = Toast.makeText(m_context, "Cannot get path", Toast.LENGTH_LONG);
+               toast.setGravity(Gravity.CENTER, 0, 0);
+               toast.show();
+               return null;
+            }
+         } else {
+            if (f.isDirectory()) {
+               ArrayList<String> subResults = searchPaths(f.getPath(), expr);
+               if (subResults != null) {
+                  for (String path : subResults)
+                  {
+                     results.add(path);
+                  }
+               }
+            }
+         }
+      }
+      if (results.size() > 0)
+      {
+         return results;
+      } else {
+         return null;
+      }
    }
 }
