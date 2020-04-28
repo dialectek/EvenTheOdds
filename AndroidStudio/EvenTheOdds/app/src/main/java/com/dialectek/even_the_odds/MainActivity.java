@@ -36,8 +36,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
-public final class MainActivity extends AppCompatActivity
-{
+public final class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
 
     public static String mRecordingFile;
@@ -50,24 +49,21 @@ public final class MainActivity extends AppCompatActivity
     private Button mNextButton;
     private TextView mTextLog;
     private SeekBar mSeekbarAudio;
+    private TextView mTextSeekbarAudio;
     private ScrollView mScrollContainer;
     private PlayerAdapter mPlayerAdapter;
     private boolean mUserIsSeeking = false;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         String rootDir = getFilesDir().getAbsolutePath();
-        try
-        {
+        try {
             rootDir = new File(rootDir).getCanonicalPath();
+        } catch (IOException ioe) {
         }
-        catch (IOException ioe)
-        {
-        }
-        mRecordingFile  = rootDir + "/recording.3gp";
+        mRecordingFile = rootDir + "/recording.3gp";
         File file = new File(mRecordingFile);
         if (file.exists()) {
             file.delete();
@@ -84,15 +80,13 @@ public final class MainActivity extends AppCompatActivity
     }
 
     @Override
-    protected void onStart()
-    {
+    protected void onStart() {
         super.onStart();
         Log.d(TAG, "onStart: create MediaPlayer");
     }
 
     @Override
-    protected void onStop()
-    {
+    protected void onStop() {
         super.onStop();
         if (isChangingConfigurations() && mPlayerAdapter.isPlaying()) {
             Log.d(TAG, "onStop: don't release MediaPlayer as screen is rotating & playing");
@@ -102,91 +96,97 @@ public final class MainActivity extends AppCompatActivity
         }
     }
 
-    private void initializeUI()
-    {
+    private void initializeUI() {
         // Record button.
         mRecordButton = (Button) findViewById(R.id.button_record);
-        int buttonWidth = (int)((float)Resources.getSystem().getDisplayMetrics().widthPixels * 0.6f);
+        int buttonWidth = (int) ((float) Resources.getSystem().getDisplayMetrics().widthPixels * 0.6f);
         mRecordButton.setWidth(buttonWidth);
-        mRecordButton.setOnClickListener(new View.OnClickListener()
-                                      {
-                                          static final int StartColor = Color.BLACK;
-                                          static final int StopColor = Color.RED;
-                                          boolean mStartRecording = true;
-                                          MediaRecorder mRecorder;
+        mRecordButton.setOnClickListener(new View.OnClickListener() {
+                                             static final int StartColor = Color.BLACK;
+                                             static final int StopColor = Color.RED;
+                                             boolean mStartRecording = true;
+                                             MediaRecorder mRecorder;
 
-                                          @Override
-                                          public void onClick(View v)
-                                          {
-                                              mPlayerAdapter.reset();
-                                              if (mStartRecording)
-                                              {
-                                                  mRecorder = new MediaRecorder();
-                                                  mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                                                  mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-                                                  mRecorder.setOutputFile(mRecordingFile);
-                                                  mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+                                             @Override
+                                             public void onClick(View v) {
+                                                 mPlayerAdapter.reset();
+                                                 if (mStartRecording) {
+                                                     mRecorder = new MediaRecorder();
+                                                     mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                                                     mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                                                     mRecorder.setOutputFile(mRecordingFile);
+                                                     mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
-                                                  try {
-                                                      mRecorder.prepare();
-                                                  }
-                                                  catch (IOException e) {
-                                                      Log.e(TAG, "prepare() failed");
-                                                  }
+                                                     try {
+                                                         mRecorder.prepare();
+                                                     } catch (IOException e) {
+                                                         Toast toast = Toast.makeText(MainActivity.this, "Cannot start recording", Toast.LENGTH_LONG);
+                                                         toast.setGravity(Gravity.CENTER, 0, 0);
+                                                         toast.show();
+                                                         return;
+                                                     }
 
-                                                  mRecorder.start();
-                                                  mRecordButton.setTextColor(StopColor);
-                                                  mRecordButton.setText("Stop recording");
+                                                     DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
+                                                     String timeString = dateFormat.format(new Date()).toString() + ".";
+                                                     logMessage("Start recording at: " + timeString);
 
-                                                  Animation anim = new AlphaAnimation(0.35f, 1.0f);
-                                                  anim.setDuration(500);
-                                                  anim.setStartOffset(20);
-                                                  anim.setRepeatMode(Animation.REVERSE);
-                                                  anim.setRepeatCount(Animation.INFINITE);
-                                                  mRecordButton.startAnimation(anim);
-                                              }
-                                              else
-                                              {
-                                                  mRecordButton.clearAnimation();
-                                                  mRecorder.stop();
-                                                  mRecorder.release();
-                                                  mRecorder = null;
-                                                  mRecordButton.setTextColor(StartColor);
-                                                  mRecordButton.setText("Start recording");
-                                                  mPlaylist = new ArrayList<String>();
-                                                  mPlaylist.add(mRecordingFile);
-                                                  mPlaylistIndex = 0;
-                                                  mPlayButton.setEnabled(false);
-                                                  mPauseButton.setEnabled(false);
-                                                  mNextButton.setEnabled(false);
-                                                  if (new File(mRecordingFile).exists()) {
-                                                      if (mPlayerAdapter.setDataSource(mRecordingFile)) {
-                                                          mPlayButton.setEnabled(true);
-                                                          mPauseButton.setEnabled(true);
-                                                          mNextButton.setEnabled(false);
-                                                      } else {
-                                                          Toast toast = Toast.makeText(MainActivity.this, "Cannot play recording", Toast.LENGTH_LONG);
-                                                          toast.setGravity(Gravity.CENTER, 0, 0);
-                                                          toast.show();
-                                                      }
-                                                  }
-                                              }
+                                                     mRecorder.start();
+                                                     mRecordButton.setTextColor(StopColor);
+                                                     mRecordButton.setText("Stop recording");
 
-                                              mStartRecording = !mStartRecording;
-                                          }
-                                      }
+                                                     Animation anim = new AlphaAnimation(0.35f, 1.0f);
+                                                     anim.setDuration(500);
+                                                     anim.setStartOffset(20);
+                                                     anim.setRepeatMode(Animation.REVERSE);
+                                                     anim.setRepeatCount(Animation.INFINITE);
+                                                     mRecordButton.startAnimation(anim);
+                                                 } else {
+                                                     DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
+                                                     String timeString = dateFormat.format(new Date()).toString() + ".";
+                                                     logMessage("Stop recording at: " + timeString);
+                                                     mRecordButton.clearAnimation();
+                                                     mRecorder.stop();
+                                                     mRecorder.release();
+                                                     mRecorder = null;
+                                                     mRecordButton.setTextColor(StartColor);
+                                                     mRecordButton.setText("Start recording");
+                                                     mPlaylist = new ArrayList<String>();
+                                                     mPlaylist.add(mRecordingFile);
+                                                     mPlaylistIndex = 0;
+                                                     mPlayButton.setEnabled(false);
+                                                     mPauseButton.setEnabled(false);
+                                                     mNextButton.setEnabled(false);
+                                                     if (new File(mRecordingFile).exists()) {
+                                                         if (mPlayerAdapter.setDataSource(mRecordingFile)) {
+                                                             mPlayButton.setEnabled(true);
+                                                             mPauseButton.setEnabled(true);
+                                                             mNextButton.setEnabled(false);
+                                                             logMessage("Recording ready to play (duration=" + getTimeFromMS(mPlayerAdapter.getPlayDuration()) + ").");
+                                                         } else {
+                                                             Toast toast = Toast.makeText(MainActivity.this, "Cannot play recording", Toast.LENGTH_LONG);
+                                                             toast.setGravity(Gravity.CENTER, 0, 0);
+                                                             toast.show();
+                                                         }
+                                                     } else {
+                                                         Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording", Toast.LENGTH_LONG);
+                                                         toast.setGravity(Gravity.CENTER, 0, 0);
+                                                         toast.show();
+                                                     }
+                                                 }
+
+                                                 mStartRecording = !mStartRecording;
+                                             }
+                                         }
         );
 
         // Save.
         Button saveButton = (Button) findViewById(R.id.button_save);
         saveButton.setWidth(buttonWidth);
-        saveButton.setOnClickListener(new View.OnClickListener()
-                                      {
+        saveButton.setOnClickListener(new View.OnClickListener() {
                                           String m_saved;
 
                                           @Override
-                                          public void onClick(View v)
-                                          {
+                                          public void onClick(View v) {
                                               mPlayerAdapter.reset();
                                               if (new File(mRecordingFile).exists()) {
                                                   DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
@@ -195,16 +195,18 @@ public final class MainActivity extends AppCompatActivity
                                               } else {
                                                   RecordManager.Default_File_Name = "";
                                               }
-                                              RecordManager recordSaver = new RecordManager(MainActivity.this, m_dataDirectory,"Save",
+                                              RecordManager recordSaver = new RecordManager(MainActivity.this, m_dataDirectory, "Save",
                                                       new RecordManager.Listener() {
                                                           @Override
                                                           public void onSave(String savedFile) {
                                                               m_saved = savedFile;
                                                               logMessage(savedFile.replace(m_dataDirectory, "") + " saved.");
                                                           }
+
                                                           @Override
                                                           public void onDelete(String deletedFile) {
                                                           }
+
                                                           @Override
                                                           public void onSelect(String selectedFile) {
                                                           }
@@ -218,31 +220,30 @@ public final class MainActivity extends AppCompatActivity
         // Browse.
         Button browseButton = (Button) findViewById(R.id.button_browse);
         browseButton.setWidth(buttonWidth);
-        browseButton.setOnClickListener(new View.OnClickListener()
-                                        {
+        browseButton.setOnClickListener(new View.OnClickListener() {
                                             String m_selected;
 
                                             @Override
-                                            public void onClick(View v)
-                                            {
+                                            public void onClick(View v) {
                                                 mPlayerAdapter.reset();
                                                 RecordManager.Default_File_Name = "";
-                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory,"Browse",
+                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory, "Browse",
                                                         new RecordManager.Listener() {
                                                             @Override
                                                             public void onSave(String savedFile) {
                                                             }
+
                                                             @Override
                                                             public void onDelete(String deletedFile) {
-                                                           }
+                                                            }
+
                                                             @Override
                                                             public void onSelect(String selectedFile) {
                                                                 m_selected = selectedFile;
                                                                 String displayFile = selectedFile.replace(m_dataDirectory, "");
                                                                 logMessage(displayFile + " selected.");
                                                                 File file = new File(selectedFile);
-                                                                if (file.exists())
-                                                                {
+                                                                if (file.exists()) {
                                                                     if (file.isFile()) {
                                                                         mPlaylist = new ArrayList<String>();
                                                                         mPlaylist.add(selectedFile);
@@ -269,7 +270,9 @@ public final class MainActivity extends AppCompatActivity
                                                                             if (mPlayerAdapter.setDataSource(mRecordingFile)) {
                                                                                 mPlayButton.setEnabled(true);
                                                                                 mPauseButton.setEnabled(true);
-                                                                                logMessage("Ready to play " + displayFile + " (" + (mPlaylistIndex + 1) + "/" + mPlaylist.size() + ").");
+                                                                                logMessage("Ready to play " + displayFile +
+                                                                                        " (" + (mPlaylistIndex + 1) + "/" + mPlaylist.size() +
+                                                                                        ", duration=" + getTimeFromMS(mPlayerAdapter.getPlayDuration()) + ").");
                                                                             } else {
                                                                                 Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
                                                                                 toast.setGravity(Gravity.CENTER, 0, 0);
@@ -297,28 +300,28 @@ public final class MainActivity extends AppCompatActivity
         // Delete.
         Button deleteButton = (Button) findViewById(R.id.button_delete);
         deleteButton.setWidth(buttonWidth);
-        deleteButton.setOnClickListener(new View.OnClickListener()
-                                        {
+        deleteButton.setOnClickListener(new View.OnClickListener() {
                                             String m_deleted;
 
                                             @Override
-                                            public void onClick(View v)
-                                            {
+                                            public void onClick(View v) {
                                                 mPlayerAdapter.reset();
                                                 RecordManager.Default_File_Name = "";
-                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory,"Delete",
+                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory, "Delete",
                                                         new RecordManager.Listener() {
                                                             @Override
                                                             public void onSave(String savedFile) {
                                                             }
+
                                                             @Override
                                                             public void onDelete(String deletedFile) {
                                                                 m_deleted = deletedFile;
                                                                 logMessage(deletedFile.replace(m_dataDirectory, "") + " deleted.");
                                                             }
+
                                                             @Override
                                                             public void onSelect(String selectedFile) {
-                                                             }
+                                                            }
                                                         }
                                                 );
                                                 recordBrowser.chooseFile_or_Dir();
@@ -334,6 +337,9 @@ public final class MainActivity extends AppCompatActivity
         mNextButton = (Button) findViewById(R.id.button_next);
         mNextButton.setEnabled(false);
         mSeekbarAudio = (SeekBar) findViewById(R.id.seekbar_audio);
+        mTextSeekbarAudio = (TextView) findViewById(R.id.text_seekbar_audio);
+        mTextSeekbarAudio.setText("0:0");
+        setTextSeekbarX(mTextSeekbarAudio, mSeekbarAudio);
         mScrollContainer = (ScrollView) findViewById(R.id.scroll_container);
 
         mPlayButton.setOnClickListener(
@@ -354,13 +360,11 @@ public final class MainActivity extends AppCompatActivity
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        if (mPlaylist != null && mPlaylistIndex < mPlaylist.size() - 1)
-                        {
+                        if (mPlaylist != null && mPlaylistIndex < mPlaylist.size() - 1) {
                             mPlaylistIndex++;
                             mPlayButton.setEnabled(false);
                             mPauseButton.setEnabled(false);
-                            if (mPlaylistIndex < mPlaylist.size() - 1)
-                            {
+                            if (mPlaylistIndex < mPlaylist.size() - 1) {
                                 mNextButton.setEnabled(true);
                             } else {
                                 mNextButton.setEnabled(false);
@@ -377,7 +381,9 @@ public final class MainActivity extends AppCompatActivity
                                     if (mPlayerAdapter.setDataSource(mRecordingFile)) {
                                         mPlayButton.setEnabled(true);
                                         mPauseButton.setEnabled(true);
-                                        logMessage("Ready to play " + displayFile + " (" + (mPlaylistIndex + 1) + "/" + mPlaylist.size() + ").");
+                                        logMessage("Ready to play " + displayFile +
+                                                " (" + (mPlaylistIndex + 1) + "/" + mPlaylist.size() +
+                                                ", duration=" + getTimeFromMS(mPlayerAdapter.getPlayDuration()) + ").");
                                     } else {
                                         Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
                                         toast.setGravity(Gravity.CENTER, 0, 0);
@@ -394,8 +400,7 @@ public final class MainActivity extends AppCompatActivity
                 });
     }
 
-    private void initializePlaybackController()
-    {
+    private void initializePlaybackController() {
         MediaPlayerHolder mMediaPlayerHolder = new MediaPlayerHolder(this);
         Log.d(TAG, "initializePlaybackController: created MediaPlayerHolder");
         mMediaPlayerHolder.setPlaybackInfoListener(new PlaybackListener());
@@ -403,8 +408,7 @@ public final class MainActivity extends AppCompatActivity
         Log.d(TAG, "initializePlaybackController: MediaPlayerHolder progress callback set");
     }
 
-    private void initializeSeekbar()
-    {
+    private void initializeSeekbar() {
         mSeekbarAudio.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
                     int userSelectedPosition = 0;
@@ -419,6 +423,9 @@ public final class MainActivity extends AppCompatActivity
                         if (fromUser) {
                             userSelectedPosition = progress;
                         }
+
+                        mTextSeekbarAudio.setText(getTimeFromMS(progress));
+                        setTextSeekbarX(mTextSeekbarAudio, seekBar);
                     }
 
                     @Override
@@ -427,6 +434,15 @@ public final class MainActivity extends AppCompatActivity
                         mPlayerAdapter.seekTo(userSelectedPosition);
                     }
                 });
+    }
+
+    void setTextSeekbarX(TextView text, SeekBar seekBar) {
+        int width = seekBar.getWidth() - seekBar.getPaddingLeft() - seekBar.getPaddingRight();
+        int thumbPos = seekBar.getPaddingLeft() + width * seekBar.getProgress() / seekBar.getMax();
+        text.measure(0,0);
+        int txtW = text.getMeasuredWidth();
+        int delta = txtW / 2;
+        text.setX(seekBar.getX()+thumbPos -delta);
     }
 
     public class PlaybackListener extends PlaybackInfoListener
@@ -568,5 +584,14 @@ public final class MainActivity extends AppCompatActivity
         } else {
             return null;
         }
+    }
+
+    // Convert time from ms to mins:secs
+    public String getTimeFromMS(int ms)
+    {
+        int seconds = ms / 1000;
+        int minutes = seconds / 60;
+        seconds -= (minutes * 60);
+        return minutes + ":" + seconds;
     }
 }
