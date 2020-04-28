@@ -7,6 +7,7 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import java.util.ArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ public final class MediaPlayerHolder implements PlayerAdapter {
 
     // Implements PlaybackControl.
     @Override
-    public void setDataSource(String filename) {
+    public boolean setDataSource(String filename) {
         mFilename = filename;
         mResourceId = -1;
 
@@ -75,6 +76,7 @@ public final class MediaPlayerHolder implements PlayerAdapter {
             mMediaPlayer.setDataSource(filename);
         } catch (Exception e) {
             logToUI(e.toString());
+            return false;
         }
 
         try {
@@ -82,15 +84,18 @@ public final class MediaPlayerHolder implements PlayerAdapter {
             mMediaPlayer.prepare();
         } catch (Exception e) {
             logToUI(e.toString());
+            return false;
         }
 
         initializeProgressCallback();
         logToUI("initializeProgressCallback()");
+
+        return true;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
-    public void loadMedia(int resourceId) {
+    public boolean loadMedia(int resourceId) {
         mResourceId = resourceId;
         mFilename = null;
 
@@ -103,6 +108,7 @@ public final class MediaPlayerHolder implements PlayerAdapter {
             mMediaPlayer.setDataSource(assetFileDescriptor);
         } catch (Exception e) {
             logToUI(e.toString());
+            return false;
         }
 
         try {
@@ -110,10 +116,13 @@ public final class MediaPlayerHolder implements PlayerAdapter {
             mMediaPlayer.prepare();
         } catch (Exception e) {
             logToUI(e.toString());
+            return false;
         }
 
         initializeProgressCallback();
         logToUI("initializeProgressCallback()");
+
+        return true;
     }
 
     @Override

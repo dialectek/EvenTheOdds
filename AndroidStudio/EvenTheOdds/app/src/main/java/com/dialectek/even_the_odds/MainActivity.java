@@ -31,16 +31,20 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 public final class MainActivity extends AppCompatActivity
 {
     public static final String TAG = "MainActivity";
-    public static final int MEDIA_RES_ID = R.raw.jazz_in_paris;
 
-    public static String       RecordingFile = null;
+    public static String mRecordingFile;
+    private ArrayList<String> mPlaylist;
+    private int mPlaylistIndex;
     private String m_dataDirectory;
     private Button mRecordButton;
+    private Button mPlayButton;
+    private Button mPauseButton;
     private Button mNextButton;
     private TextView mTextLog;
     private SeekBar mSeekbarAudio;
@@ -61,8 +65,8 @@ public final class MainActivity extends AppCompatActivity
         catch (IOException ioe)
         {
         }
-        RecordingFile  = rootDir + "/recording.3gp";
-        File file = new File(RecordingFile);
+        mRecordingFile  = rootDir + "/recording.3gp";
+        File file = new File(mRecordingFile);
         if (file.exists()) {
             file.delete();
         }
@@ -81,7 +85,6 @@ public final class MainActivity extends AppCompatActivity
     protected void onStart()
     {
         super.onStart();
-        mPlayerAdapter.loadMedia(MEDIA_RES_ID);
         Log.d(TAG, "onStart: create MediaPlayer");
     }
 
@@ -119,7 +122,7 @@ public final class MainActivity extends AppCompatActivity
                                                   mRecorder = new MediaRecorder();
                                                   mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
                                                   mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-                                                  mRecorder.setOutputFile(RecordingFile);
+                                                  mRecorder.setOutputFile(mRecordingFile);
                                                   mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
                                                   try {
@@ -140,7 +143,23 @@ public final class MainActivity extends AppCompatActivity
                                                   mRecorder = null;
                                                   mRecordButton.setTextColor(StartColor);
                                                   mRecordButton.setText("Start recording");
-                                                  mPlayerAdapter.setDataSource(RecordingFile);
+                                                  mPlaylist = new ArrayList<String>();
+                                                  mPlaylist.add(mRecordingFile);
+                                                  mPlaylistIndex = 0;
+                                                  mPlayButton.setEnabled(false);
+                                                  mPauseButton.setEnabled(false);
+                                                  mNextButton.setEnabled(false);
+                                                  if (new File(mRecordingFile).exists()) {
+                                                      if (mPlayerAdapter.setDataSource(mRecordingFile)) {
+                                                          mPlayButton.setEnabled(true);
+                                                          mPauseButton.setEnabled(true);
+                                                          mNextButton.setEnabled(false);
+                                                      } else {
+                                                          Toast toast = Toast.makeText(MainActivity.this, "Cannot play recording", Toast.LENGTH_LONG);
+                                                          toast.setGravity(Gravity.CENTER, 0, 0);
+                                                          toast.show();
+                                                      }
+                                                  }
                                               }
 
                                               mStartRecording = !mStartRecording;
@@ -159,32 +178,29 @@ public final class MainActivity extends AppCompatActivity
                                           public void onClick(View v)
                                           {
                                               mPlayerAdapter.reset();
-                                              if (new File(RecordingFile).exists())
-                                              {
+                                              if (new File(mRecordingFile).exists()) {
                                                   DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
                                                   String fileString = dateFormat.format(new Date()).toString() + ".3gp";
                                                   RecordManager.Default_File_Name = fileString;
-                                                  RecordManager recordSaver = new RecordManager(MainActivity.this, m_dataDirectory,"Save",
-                                                          new RecordManager.Listener() {
-                                                              @Override
-                                                              public void onSave(String savedFile) {
-                                                                  m_saved = savedFile;
-                                                                  logMessage(savedFile.replace(m_dataDirectory, "") + " saved.");
-                                                              }
-                                                              @Override
-                                                              public void onDelete(String deletedFile) {
-                                                              }
-                                                              @Override
-                                                              public void onSelect(String selectedFile) {
-                                                              }
-                                                          }
-                                                  );
-                                                  recordSaver.chooseFile_or_Dir();
                                               } else {
-                                                  Toast toast = Toast.makeText(MainActivity.this, "No recording to save", Toast.LENGTH_LONG);
-                                                  toast.setGravity(Gravity.CENTER, 0, 0);
-                                                  toast.show();
+                                                  RecordManager.Default_File_Name = "";
                                               }
+                                              RecordManager recordSaver = new RecordManager(MainActivity.this, m_dataDirectory,"Save",
+                                                      new RecordManager.Listener() {
+                                                          @Override
+                                                          public void onSave(String savedFile) {
+                                                              m_saved = savedFile;
+                                                              logMessage(savedFile.replace(m_dataDirectory, "") + " saved.");
+                                                          }
+                                                          @Override
+                                                          public void onDelete(String deletedFile) {
+                                                          }
+                                                          @Override
+                                                          public void onSelect(String selectedFile) {
+                                                          }
+                                                      }
+                                              );
+                                              recordSaver.chooseFile_or_Dir();
                                           }
                                       }
         );
@@ -212,7 +228,54 @@ public final class MainActivity extends AppCompatActivity
                                                             @Override
                                                             public void onSelect(String selectedFile) {
                                                                 m_selected = selectedFile;
-                                                                logMessage(selectedFile.replace(m_dataDirectory, "") + " selected.");
+                                                                String displayFile = selectedFile.replace(m_dataDirectory, "");
+                                                                logMessage(displayFile + " selected.");
+                                                                File file = new File(selectedFile);
+                                                                if (file.exists())
+                                                                {
+                                                                    if (file.isFile()) {
+                                                                        mPlaylist = new ArrayList<String>();
+                                                                        mPlaylist.add(selectedFile);
+                                                                    } else {
+                                                                        mPlaylist = listRecordings(selectedFile);
+                                                                    }
+                                                                    mPlaylistIndex = 0;
+                                                                    if (mPlaylist != null) {
+                                                                        selectedFile = mPlaylist.get(0);
+                                                                        displayFile = selectedFile.replace(m_dataDirectory, "");
+                                                                        mPlayButton.setEnabled(false);
+                                                                        mPauseButton.setEnabled(false);
+                                                                        if (mPlaylist.size() > 1) {
+                                                                            mNextButton.setEnabled(true);
+                                                                            logMessage(mPlaylist.size() + " recordings found in folder.");
+                                                                        } else {
+                                                                            mNextButton.setEnabled(false);
+                                                                        }
+                                                                        if (!copyFile(selectedFile, mRecordingFile)) {
+                                                                            Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
+                                                                            toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                            toast.show();
+                                                                        } else {
+                                                                            if (mPlayerAdapter.setDataSource(mRecordingFile)) {
+                                                                                mPlayButton.setEnabled(true);
+                                                                                mPauseButton.setEnabled(true);
+                                                                                logMessage("Ready to play " + displayFile + " (" + (mPlaylistIndex + 1) + "/" + mPlaylist.size() + ").");
+                                                                            } else {
+                                                                                Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
+                                                                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                                toast.show();
+                                                                            }
+                                                                        }
+                                                                    } else {
+                                                                        Toast toast = Toast.makeText(MainActivity.this, "No recordings in folder " + displayFile, Toast.LENGTH_LONG);
+                                                                        toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                        toast.show();
+                                                                    }
+                                                                } else {
+                                                                    Toast toast = Toast.makeText(MainActivity.this, displayFile + " does not exist", Toast.LENGTH_LONG);
+                                                                    toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                    toast.show();
+                                                                }
                                                             }
                                                         }
                                                 );
@@ -254,13 +317,22 @@ public final class MainActivity extends AppCompatActivity
         );
 
         mTextLog = (TextView) findViewById(R.id.text_log);
-        Button mPlayButton = (Button) findViewById(R.id.button_play);
-        Button mPauseButton = (Button) findViewById(R.id.button_pause);
+        mPlayButton = (Button) findViewById(R.id.button_play);
+        mPlayButton.setEnabled(false);
+        mPauseButton = (Button) findViewById(R.id.button_pause);
+        mPauseButton.setEnabled(false);
         mNextButton = (Button) findViewById(R.id.button_next);
         mNextButton.setEnabled(false);
         mSeekbarAudio = (SeekBar) findViewById(R.id.seekbar_audio);
         mScrollContainer = (ScrollView) findViewById(R.id.scroll_container);
 
+        mPlayButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        mPlayerAdapter.play();
+                    }
+                });
         mPauseButton.setOnClickListener(
                 new View.OnClickListener() {
                     @Override
@@ -268,11 +340,46 @@ public final class MainActivity extends AppCompatActivity
                         mPlayerAdapter.pause();
                     }
                 });
-        mPlayButton.setOnClickListener(
+        mNextButton.setOnClickListener(
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        mPlayerAdapter.play();
+                        if (mPlaylist != null && mPlaylistIndex < mPlaylist.size() - 1)
+                        {
+                            mPlaylistIndex++;
+                            mPlayButton.setEnabled(false);
+                            mPauseButton.setEnabled(false);
+                            if (mPlaylistIndex < mPlaylist.size() - 1)
+                            {
+                                mNextButton.setEnabled(true);
+                            } else {
+                                mNextButton.setEnabled(false);
+                            }
+                            String selectedFile = mPlaylist.get(mPlaylistIndex);
+                            String displayFile = selectedFile.replace(m_dataDirectory, "");
+                            File file = new File(selectedFile);
+                            if (file.exists()) {
+                                if (!copyFile(selectedFile, mRecordingFile)) {
+                                    Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
+                                    toast.setGravity(Gravity.CENTER, 0, 0);
+                                    toast.show();
+                                } else {
+                                    if (mPlayerAdapter.setDataSource(mRecordingFile)) {
+                                        mPlayButton.setEnabled(true);
+                                        mPauseButton.setEnabled(true);
+                                        logMessage("Ready to play " + displayFile + " (" + (mPlaylistIndex + 1) + "/" + mPlaylist.size() + ").");
+                                    } else {
+                                        Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
+                                        toast.setGravity(Gravity.CENTER, 0, 0);
+                                        toast.show();
+                                    }
+                                }
+                            } else {
+                                Toast toast = Toast.makeText(MainActivity.this, "Cannot access recording " + displayFile, Toast.LENGTH_LONG);
+                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                toast.show();
+                            }
+                        }
                     }
                 });
     }
@@ -418,5 +525,38 @@ public final class MainActivity extends AppCompatActivity
         }
 
         return(result);
+    }
+
+    // Recursively list recordings in directory.
+    public ArrayList<String> listRecordings(String dir) {
+        ArrayList<String> results = new ArrayList<String>();
+        File[] files = new File(dir).listFiles();
+        for(File f:files) {
+            String name = f.getName();
+            if (f.isDirectory()) {
+                ArrayList<String> subResults = listRecordings(f.getPath());
+                if (subResults != null) {
+                    for (String path : subResults)
+                    {
+                        results.add(path);
+                    }
+                }
+            } else {
+                try {
+                    results.add(f.getCanonicalPath());
+                } catch (Exception e) {
+                    Toast toast = Toast.makeText(MainActivity.this, "Cannot get path", Toast.LENGTH_LONG);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
+                    return null;
+                }
+            }
+        }
+        if (results.size() > 0)
+        {
+            return results;
+        } else {
+            return null;
+        }
     }
 }

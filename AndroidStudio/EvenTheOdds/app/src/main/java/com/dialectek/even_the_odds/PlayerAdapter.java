@@ -1,13 +1,15 @@
 package com.dialectek.even_the_odds;
 
+import java.util.ArrayList;
+
 /**
  * Allows {@link MainActivity} to control media playback of {@link MediaPlayerHolder}.
  */
 public interface PlayerAdapter {
 
-    void setDataSource(String filename);
+    boolean setDataSource(String filename);
 
-    void loadMedia(int resourceId);
+    boolean loadMedia(int resourceId);
 
     void release();
 

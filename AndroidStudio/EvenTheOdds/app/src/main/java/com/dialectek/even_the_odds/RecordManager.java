@@ -156,16 +156,16 @@ public class RecordManager
                           Selected_File_Name = m_input_text.getText() + "";
                           String toFile = m_dir + "/" + Selected_File_Name;
                           String displayFile = toFile.replace(m_dataDirectory, "");
-                          if (Selected_File_Name.isEmpty() || !(new File(MainActivity.RecordingFile).exists()))
+                          if (Selected_File_Name.isEmpty() || !(new File(MainActivity.mRecordingFile).exists()))
                           {
-                             Toast toast = Toast.makeText(m_context, "Missing recording", Toast.LENGTH_LONG);
+                             Toast toast = Toast.makeText(m_context, "No recording", Toast.LENGTH_LONG);
                              toast.setGravity(Gravity.CENTER, 0, 0);
                              toast.show();
                           } else if (new File(toFile).exists()) {
                              Toast toast = Toast.makeText(m_context, "Cannot overwrite existing file " + displayFile, Toast.LENGTH_LONG);
                              toast.setGravity(Gravity.CENTER, 0, 0);
                              toast.show();
-                          } else if (!MainActivity.copyFile(MainActivity.RecordingFile, toFile)) {
+                          } else if (!MainActivity.copyFile(MainActivity.mRecordingFile, toFile)) {
                              Toast toast = Toast.makeText(m_context, "Cannot copy recording " + displayFile, Toast.LENGTH_LONG);
                              toast.setGravity(Gravity.CENTER, 0, 0);
                              toast.show();
@@ -589,6 +589,11 @@ public class RecordManager
                                                    }
                                                 }
          );
+      } else {
+         if (Default_File_Name.isEmpty())
+         {
+            m_input_text.setEnabled(false);
+         }
       }
       titleLayout.addView(m_input_text);
 
@@ -614,7 +619,7 @@ public class RecordManager
       m_search_results = null;
       m_searchButton = new Button(m_context);
       m_searchButton.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-      m_searchButton.setText("Search");
+      m_searchButton.setText("Run");
       m_searchButton.setOnClickListener(new View.OnClickListener()
                                       {
                                          @Override
@@ -637,7 +642,8 @@ public class RecordManager
                                                      m_searchButton.setText("Next");
                                                   }
                                                   String path = m_search_results.get(0);
-                                                  m_searchView.setText(path.replace(m_dataDirectory, ""));
+                                                  m_searchView.setText(" (" + (m_search_index + 1) + "/" + m_search_results.size() + ") " +
+                                                                  path.replace(m_dataDirectory, ""));
                                                }
                                             } else {
                                                if (m_search_index < m_search_results.size() - 1) {
@@ -647,7 +653,8 @@ public class RecordManager
                                                      m_searchButton.setEnabled(false);
                                                   }
                                                   String path = m_search_results.get(m_search_index);
-                                                  m_searchView.setText(path.replace(m_dataDirectory, ""));
+                                                  m_searchView.setText(" (" + (m_search_index + 1) + "/" + m_search_results.size() + ") " +
+                                                          path.replace(m_dataDirectory, ""));
                                                }
                                             }
                                          }
@@ -757,14 +764,13 @@ public class RecordManager
                toast.show();
                return null;
             }
-         } else {
-            if (f.isDirectory()) {
-               ArrayList<String> subResults = searchPaths(f.getPath(), expr);
-               if (subResults != null) {
-                  for (String path : subResults)
-                  {
-                     results.add(path);
-                  }
+         }
+         if (f.isDirectory()) {
+            ArrayList<String> subResults = searchPaths(f.getPath(), expr);
+            if (subResults != null) {
+               for (String path : subResults)
+               {
+                  results.add(path);
                }
             }
          }
