@@ -12,6 +12,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -135,9 +137,17 @@ public final class MainActivity extends AppCompatActivity
                                                   mRecorder.start();
                                                   mRecordButton.setTextColor(StopColor);
                                                   mRecordButton.setText("Stop recording");
+
+                                                  Animation anim = new AlphaAnimation(0.35f, 1.0f);
+                                                  anim.setDuration(500);
+                                                  anim.setStartOffset(20);
+                                                  anim.setRepeatMode(Animation.REVERSE);
+                                                  anim.setRepeatCount(Animation.INFINITE);
+                                                  mRecordButton.startAnimation(anim);
                                               }
                                               else
                                               {
+                                                  mRecordButton.clearAnimation();
                                                   mRecorder.stop();
                                                   mRecorder.release();
                                                   mRecorder = null;
