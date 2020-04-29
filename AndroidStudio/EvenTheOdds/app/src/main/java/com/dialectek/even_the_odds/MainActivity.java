@@ -58,6 +58,9 @@ public final class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // EULA.
+        Eula.show(this);
+
         String rootDir = getFilesDir().getAbsolutePath();
         try {
             rootDir = new File(rootDir).getCanonicalPath();
