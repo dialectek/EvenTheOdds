@@ -148,7 +148,7 @@ public class RecordManager
       switch (Select_type)
       {
          case Save:
-            dialogBuilder.setPositiveButton("OK", new OnClickListener()
+            dialogBuilder.setPositiveButton("Save", new OnClickListener()
                     {
                        @Override
                        public void onClick(DialogInterface dialog, int which)
@@ -411,7 +411,7 @@ public class RecordManager
                                                // Show new folder name input dialog
                                                new AlertDialog.Builder(m_context).
                                                   setTitle("Folder name:").
-                                                  setView(input).setPositiveButton("OK", new DialogInterface.OnClickListener()
+                                                  setView(input).setPositiveButton("Create", new DialogInterface.OnClickListener()
                                                                                    {
                                                                                       public void onClick(DialogInterface dialog, int whichButton)
                                                                                       {
@@ -462,7 +462,7 @@ public class RecordManager
 
                                                // Show search dialog
                                                createSearchDialog().
-                                                       setPositiveButton("OK", new DialogInterface.OnClickListener()
+                                                       setPositiveButton("Select", new DialogInterface.OnClickListener()
                                                        {
                                                           public void onClick(DialogInterface dialog, int whichButton) {
                                                              if (m_search_results != null) {
