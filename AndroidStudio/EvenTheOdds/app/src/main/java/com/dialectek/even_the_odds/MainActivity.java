@@ -9,7 +9,6 @@ import android.graphics.Color;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.StatFs;
 import android.text.format.Formatter;
 import android.util.Log;
