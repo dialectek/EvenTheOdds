@@ -66,8 +66,9 @@ public class RecordManager
    public interface Listener
    {
       public void onSave(String fileName);
-      public void onDelete(String fileName);
       public void onSelect(String filename);
+      public void onDelete(String fileName);
+      public void onStorage();
    }
 
    public RecordManager(Context context, String dataDirectory, String record_select_type, Listener listener)
@@ -202,7 +203,18 @@ public class RecordManager
                           }
                        }
                     }
-            ).setNegativeButton("Cancel", null);
+            );
+            dialogBuilder.setNeutralButton("Storage", new OnClickListener()
+                    {
+                       @Override
+                       public void onClick(DialogInterface dialog, int which) {
+                          if (m_Listener != null) {
+                             m_Listener.onStorage();
+                          }
+                       }
+                    }
+            );
+            dialogBuilder.setNegativeButton("Cancel", null);
             break;
 
          case Delete:

@@ -9,6 +9,9 @@ import android.graphics.Color;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.StatFs;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -79,6 +82,7 @@ public final class MainActivity extends AppCompatActivity {
         initializeUI();
         initializeSeekbar();
         initializePlaybackController();
+
         Log.d(TAG, "onCreate: finished");
     }
 
@@ -207,11 +211,17 @@ public final class MainActivity extends AppCompatActivity {
                                                           }
 
                                                           @Override
+                                                          public void onSelect(String selectedFile) {
+                                                          }
+
+                                                          @Override
                                                           public void onDelete(String deletedFile) {
                                                           }
 
                                                           @Override
-                                                          public void onSelect(String selectedFile) {
+                                                          public void onStorage() {
+                                                              logAvailableStorage();
+                                                              logTotalStorage();
                                                           }
                                                       }
                                               );
@@ -234,10 +244,6 @@ public final class MainActivity extends AppCompatActivity {
                                                         new RecordManager.Listener() {
                                                             @Override
                                                             public void onSave(String savedFile) {
-                                                            }
-
-                                                            @Override
-                                                            public void onDelete(String deletedFile) {
                                                             }
 
                                                             @Override
@@ -293,6 +299,16 @@ public final class MainActivity extends AppCompatActivity {
                                                                     toast.show();
                                                                 }
                                                             }
+
+                                                            @Override
+                                                            public void onDelete(String deletedFile) {
+                                                            }
+
+                                                            @Override
+                                                            public void onStorage() {
+                                                                logAvailableStorage();
+                                                                logTotalStorage();
+                                                            }
                                                         }
                                                 );
                                                 recordBrowser.chooseFile_or_Dir();
@@ -317,13 +333,19 @@ public final class MainActivity extends AppCompatActivity {
                                                             }
 
                                                             @Override
+                                                            public void onSelect(String selectedFile) {
+                                                            }
+
+                                                            @Override
                                                             public void onDelete(String deletedFile) {
                                                                 m_deleted = deletedFile;
                                                                 logMessage(deletedFile.replace(m_dataDirectory, "") + " deleted.");
                                                             }
 
                                                             @Override
-                                                            public void onSelect(String selectedFile) {
+                                                            public void onStorage() {
+                                                                logAvailableStorage();
+                                                                logTotalStorage();
                                                             }
                                                         }
                                                 );
@@ -597,4 +619,31 @@ public final class MainActivity extends AppCompatActivity {
         seconds -= (minutes * 60);
         return minutes + ":" + seconds;
     }
+
+    public long getAvailableStorage() {
+        File path = getFilesDir();
+        StatFs stat = new StatFs(path.getPath());
+        long blockSize = stat.getBlockSize();
+        long availableBlocks = stat.getAvailableBlocks();
+        long size = availableBlocks * blockSize;
+        return size;
+    }
+
+    public long getTotalStorage() {
+        File path = getFilesDir();
+        StatFs stat = new StatFs(path.getPath());
+        long blockSize = stat.getBlockSize();
+        long totalBlocks = stat.getBlockCount();
+        long size = totalBlocks * blockSize;
+        return size;
+    }
+
+    public void logAvailableStorage() {
+        logMessage("Available storage=" + Formatter.formatFileSize(this, getAvailableStorage()) + ".");
+    }
+
+    public void logTotalStorage() {
+        logMessage("Total storage=" + Formatter.formatFileSize(this, getTotalStorage()) + ".");
+    }
+
 }
