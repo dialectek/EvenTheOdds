@@ -5,26 +5,30 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.Toast;
 
 public class JusticeFragment extends Fragment {
 
-
-    View view;
-    Button justiceButton;
+    private WebView mWebView;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        view = inflater.inflate(R.layout.justice_fragment, container, false);
-        justiceButton = (Button) view.findViewById(R.id.button_justice);
-        justiceButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(getActivity(), "Justice Fragment", Toast.LENGTH_LONG).show();
-            }
-        });
+        View view = inflater.inflate(R.layout.justice_fragment, container, false);
+        mWebView = (WebView) view.findViewById(R.id.webview);
+        mWebView.loadUrl("https://google.com");
+
+        // Enable Javascript.
+        WebSettings webSettings = mWebView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+
+        // Force links and redirects to open in the WebView instead of in a browser.
+        mWebView.setWebViewClient(new WebViewClient());
+
         return view;
     }
 }

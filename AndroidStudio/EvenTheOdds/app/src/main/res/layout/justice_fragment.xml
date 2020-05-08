@@ -6,26 +6,9 @@
     android:orientation="vertical"
     tools:context="com.dialectek.even_the_odds.JusticeFragment">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="100dp"
-        android:text="Justice Fragment"
-        android:textColor="@color/black"
-        android:textSize="25sp" />
-
-    <Button
-        android:id="@+id/button_justice"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:layout_marginLeft="20dp"
-        android:layout_marginRight="20dp"
-        android:background="@color/green"
-        android:text="Justice Fragment"
-        android:textColor="@color/white"
-        android:textSize="20sp"
-        android:textStyle="bold" />
-
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+        
 </RelativeLayout>
