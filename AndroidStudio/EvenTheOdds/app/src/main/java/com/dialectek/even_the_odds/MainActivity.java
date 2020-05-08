@@ -3,6 +3,9 @@
 package com.dialectek.even_the_odds;
 
 import android.Manifest;
+import android.app.Fragment;
+import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -353,6 +356,16 @@ public final class MainActivity extends AppCompatActivity {
                                         }
         );
 
+        // Justice.
+        Button justiceButton = (Button) findViewById(R.id.button_justice);
+        justiceButton.setWidth(buttonWidth);
+        justiceButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadFragment(new JusticeFragment());
+            }
+        });
+
         mTextLog = (TextView) findViewById(R.id.text_log);
         mPlayButton = (Button) findViewById(R.id.button_play);
         mPlayButton.setEnabled(false);
@@ -645,4 +658,12 @@ public final class MainActivity extends AppCompatActivity {
         logMessage("Total storage=" + Formatter.formatFileSize(this, getTotalStorage()) + ".");
     }
 
+    // Load a fragment.
+    private void loadFragment(Fragment fragment) {
+        FragmentManager fm = getFragmentManager();
+        FragmentTransaction fragmentTransaction = fm.beginTransaction();
+        fragmentTransaction.replace(R.id.frameLayout, fragment);
+        fragmentTransaction.addToBackStack(null);
+        fragmentTransaction.commit();
+    }
 }
