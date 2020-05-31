@@ -45,6 +45,7 @@ public final class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
 
     public static String mRecordingFile;
+    public static String mServersFile;
     private ArrayList<String> mPlaylist;
     private int mPlaylistIndex;
     private String m_dataDirectory;
@@ -77,6 +78,7 @@ public final class MainActivity extends AppCompatActivity {
             file.delete();
         }
         m_dataDirectory = rootDir + "/content";
+        mServersFile = rootDir + "/servers.txt";
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 

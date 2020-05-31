@@ -6,9 +6,42 @@
     android:orientation="vertical"
     tools:context="com.dialectek.even_the_odds.JusticeFragment">
 
-    <WebView
-        android:id="@+id/webview"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-        
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" 
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
+
+        <TextView android:layout_height="wrap_content"
+                android:layout_margin="4px"
+                android:layout_width="fill_parent"
+                android:editable="false"
+                android:textSize="18sp"
+                android:text="Server:"></TextView>
+        <Spinner android:layout_height="wrap_content"
+                android:id="@+id/dynamicSpinner"
+                android:layout_margin="4px" 
+                android:layout_width="fill_parent"></Spinner>
+        <LinearLayout
+                android:layout_width="fill_parent"
+                android:layout_height="match_parent"
+                android:gravity="top|center"
+                android:orientation="horizontal">
+                <Button android:layout_height="wrap_content"
+                        android:id="@+id/ConnectBtn"
+                        android:layout_margin="4px"
+                        android:layout_width="wrap_content"
+                        android:text="Connect"></Button>
+                <Button android:layout_height="wrap_content"
+                        android:id="@+id/AddBtn"
+                        android:layout_margin="4px"
+                        android:layout_width="wrap_content"
+                        android:text="Add"></Button>
+                <Button android:layout_height="wrap_content"
+                        android:id="@+id/RemoveBtn"
+                        android:layout_margin="4px"
+                        android:layout_width="wrap_content"
+                        android:text="Remove"></Button>
+        </LinearLayout>
+    </LinearLayout>
+
 </RelativeLayout>
