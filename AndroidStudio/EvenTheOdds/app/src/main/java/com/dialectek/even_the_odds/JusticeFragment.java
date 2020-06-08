@@ -65,7 +65,7 @@ public class JusticeFragment extends Fragment {
 
             @Override
             public void onClick(View v) {
-                fetchCases();
+                getCases();
             }
         });
         addButton.setOnClickListener(new View.OnClickListener()
@@ -137,10 +137,10 @@ public class JusticeFragment extends Fragment {
         }
     }
 
-    private void fetchCases() {
+    private void getCases() {
         if (m_myDynamicSpinner.getCount() > 0) {
             if (!m_myDynamicSpinner.getSelectedItem().toString().equals(server_hint)) {
-                mURLname = m_myDynamicSpinner.getSelectedItem().toString();
+                mURLname = m_myDynamicSpinner.getSelectedItem().toString() + "/EvenTheOdds/rest/service/get_cases";
                 new HTTPgetTask().execute();
             }
         }
