@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -37,10 +38,12 @@ public class JusticeFragment extends Fragment {
 
     private View m_view;
     private Context m_context;
-    private Spinner m_myDynamicSpinner;
-    private ArrayAdapter m_adapterForSpinner;
+    private Spinner m_serverSpinner;
+    private ArrayAdapter m_adapterForServerSpinner;
     private String server_hint = "<add server>";
     private static String mURLname;
+    private Spinner m_caseSpinner;
+    private ArrayAdapter m_adapterForCaseSpinner;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -53,22 +56,33 @@ public class JusticeFragment extends Fragment {
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        m_myDynamicSpinner = (Spinner)m_view.findViewById(R.id.dynamicSpinner);
-        m_adapterForSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
-        m_adapterForSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        m_myDynamicSpinner.setAdapter(m_adapterForSpinner);
-        Button connectButton = (Button)m_view.findViewById(R.id.ConnectBtn);
-        Button addButton = (Button)m_view.findViewById(R.id.AddBtn);
-        Button removeButton = (Button)m_view.findViewById(R.id.RemoveBtn);
+        m_serverSpinner = (Spinner)m_view.findViewById(R.id.server_spinner);
+        m_serverSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parentView, View selectedItemView, int position, long id) {
+                updateServerFile();
+            }
 
-        connectButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onNothingSelected(AdapterView<?> parentView) {
+            }
+
+        });
+        m_adapterForServerSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
+        m_adapterForServerSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        m_serverSpinner.setAdapter(m_adapterForServerSpinner);
+        Button connectServerButton = (Button)m_view.findViewById(R.id.connect_server_button);
+        Button addServerButton = (Button)m_view.findViewById(R.id.add_server_button);
+        Button removeServerButton = (Button)m_view.findViewById(R.id.remove_server_button);
+
+        connectServerButton.setOnClickListener(new View.OnClickListener(){
 
             @Override
             public void onClick(View v) {
                 getCases();
             }
         });
-        addButton.setOnClickListener(new View.OnClickListener()
+        addServerButton.setOnClickListener(new View.OnClickListener()
                                         {
                                             @Override
                                             public void onClick(View v)
@@ -85,20 +99,20 @@ public class JusticeFragment extends Fragment {
                                                                 String server = input.getText().toString();
                                                                 boolean isEmpty = server == null || server.trim().isEmpty();
                                                                 if (!isEmpty) {
-                                                                    if (m_myDynamicSpinner.getSelectedItem().toString().equals(server_hint)) {
-                                                                        m_adapterForSpinner.clear();
+                                                                    if (m_serverSpinner.getSelectedItem().toString().equals(server_hint)) {
+                                                                        m_adapterForServerSpinner.clear();
                                                                     }
                                                                     boolean dup = false;
-                                                                    for (int i = 0, j = m_myDynamicSpinner.getCount(); i < j; i++)
+                                                                    for (int i = 0, j = m_serverSpinner.getCount(); i < j; i++)
                                                                     {
-                                                                        if (m_adapterForSpinner.getItem(i).toString().equals(server)) {
+                                                                        if (m_adapterForServerSpinner.getItem(i).toString().equals(server)) {
                                                                             dup = true;
                                                                             break;
                                                                         }
                                                                     }
                                                                     if (!dup) {
                                                                         CharSequence textHolder = input.getText();
-                                                                        m_adapterForSpinner.add(textHolder);
+                                                                        m_adapterForServerSpinner.add(textHolder);
                                                                         updateServerFile();
                                                                     }
                                                                 }
@@ -108,7 +122,7 @@ public class JusticeFragment extends Fragment {
                                             }
                                         }
         );
-        removeButton.setOnClickListener(new View.OnClickListener(){
+        removeServerButton.setOnClickListener(new View.OnClickListener(){
 
             @Override
             public void onClick(View v) {
@@ -122,7 +136,7 @@ public class JusticeFragment extends Fragment {
             String line;
             while ((line = rd.readLine()) != null) {
                 CharSequence textHolder = line;
-                m_adapterForSpinner.add(textHolder);
+                m_adapterForServerSpinner.add(textHolder);
             }
         } catch (Exception e) {
         }
@@ -131,19 +145,77 @@ public class JusticeFragment extends Fragment {
                 rd.close();
             } catch (Exception e) {}
         }
-        if (m_adapterForSpinner.isEmpty()) {
+        if (m_adapterForServerSpinner.isEmpty()) {
             CharSequence textHolder = server_hint;
-            m_adapterForSpinner.add(textHolder);
+            m_adapterForServerSpinner.add(textHolder);
         }
+
+        m_caseSpinner = (Spinner)m_view.findViewById(R.id.case_spinner);
+        m_adapterForCaseSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
+        m_adapterForCaseSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        m_caseSpinner.setAdapter(m_adapterForCaseSpinner);
+        CharSequence textHolder = "<connect to server>";
+        m_adapterForCaseSpinner.add(textHolder);
+        Button selectCaseButton = (Button)m_view.findViewById(R.id.select_case_button);
+        selectCaseButton.setEnabled(false);
+        Button addCaseButton = (Button)m_view.findViewById(R.id.add_case_button);
+        addCaseButton.setEnabled(false);
+
+        selectCaseButton.setOnClickListener(new View.OnClickListener(){
+
+            @Override
+            public void onClick(View v) {
+                selectCase();
+            }
+        });
+        addCaseButton.setOnClickListener(new View.OnClickListener()
+                                     {
+                                         @Override
+                                         public void onClick(View v)
+                                         {
+                                             final EditText input = new EditText(m_context);
+
+                                             // Show new case input dialog
+                                             new AlertDialog.Builder(m_context).
+                                                     setTitle("Case:").
+                                                     setView(input).setPositiveButton("OK", new DialogInterface.OnClickListener()
+                                                     {
+                                                         public void onClick(DialogInterface dialog, int whichButton)
+                                                         {
+                                                             String caseVal = input.getText().toString();
+                                                             boolean isEmpty = caseVal == null || caseVal.trim().isEmpty();
+                                                             if (!isEmpty) {
+                                                                 boolean dup = false;
+                                                                 for (int i = 0, j = m_caseSpinner.getCount(); i < j; i++)
+                                                                 {
+                                                                     if (m_adapterForCaseSpinner.getItem(i).toString().equals(caseVal)) {
+                                                                         dup = true;
+                                                                         break;
+                                                                     }
+                                                                 }
+                                                                 if (!dup) {
+                                                                     CharSequence textHolder = input.getText();
+                                                                     m_adapterForCaseSpinner.add(textHolder);
+                                                                 }
+                                                             }
+                                                         }
+                                                     }
+                                             ).setNegativeButton("Cancel", null).show();
+                                         }
+                                     }
+        );
     }
 
     private void getCases() {
-        if (m_myDynamicSpinner.getCount() > 0) {
-            if (!m_myDynamicSpinner.getSelectedItem().toString().equals(server_hint)) {
-                mURLname = m_myDynamicSpinner.getSelectedItem().toString() + "/EvenTheOdds/rest/service/get_cases";
+        if (m_serverSpinner.getCount() > 0) {
+            if (!m_serverSpinner.getSelectedItem().toString().equals(server_hint)) {
+                mURLname = m_serverSpinner.getSelectedItem().toString() + "/EvenTheOdds/rest/service/get_cases";
                 new HTTPgetTask().execute();
             }
         }
+    }
+
+    private void selectCase() {
     }
 
     private static class HTTPgetTask extends AsyncTask<Void, Void, Void> {
@@ -225,29 +297,29 @@ public class JusticeFragment extends Fragment {
     }
 
     private void removeServer() {
-        if (m_myDynamicSpinner.getCount() > 0) {
-            if (!m_myDynamicSpinner.getSelectedItem().toString().equals(server_hint)) {
-                String selected = m_myDynamicSpinner.getSelectedItem().toString();
-                int c = m_myDynamicSpinner.getCount();
+        if (m_serverSpinner.getCount() > 0) {
+            if (!m_serverSpinner.getSelectedItem().toString().equals(server_hint)) {
+                String selected = m_serverSpinner.getSelectedItem().toString();
+                int c = m_serverSpinner.getCount();
                 ArrayList<String> servers = new ArrayList<String>();
                 for (int i = 0; i < c; i++) {
-                    String s = m_myDynamicSpinner.getItemAtPosition(i).toString();
+                    String s = m_serverSpinner.getItemAtPosition(i).toString();
                     if (!s.equals(selected)) {
                         servers.add(s);
                     }
                 }
-                m_myDynamicSpinner = (Spinner)m_view.findViewById(R.id.dynamicSpinner);
-                m_adapterForSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
-                m_adapterForSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                m_myDynamicSpinner.setAdapter(m_adapterForSpinner);
+                m_serverSpinner = (Spinner)m_view.findViewById(R.id.server_spinner);
+                m_adapterForServerSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
+                m_adapterForServerSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                m_serverSpinner.setAdapter(m_adapterForServerSpinner);
                 for (String s : servers) {
                     CharSequence textHolder = s;
-                    m_adapterForSpinner.add(textHolder);
+                    m_adapterForServerSpinner.add(textHolder);
                 }
                 updateServerFile();
-                if (m_myDynamicSpinner.getCount() == 0) {
+                if (m_serverSpinner.getCount() == 0) {
                     CharSequence textHolder = server_hint;
-                    m_adapterForSpinner.add(textHolder);
+                    m_adapterForServerSpinner.add(textHolder);
                 }
             }
         }
@@ -259,9 +331,16 @@ public class JusticeFragment extends Fragment {
         try {
             writer = new FileWriter(MainActivity.mServersFile);
             PrintWriter pr = new PrintWriter(writer);
-            int c = m_myDynamicSpinner.getCount();
-            for (int i = 0; i < c; i++) {
-                pr.write(m_myDynamicSpinner.getItemAtPosition(i).toString() + "\n");
+            int c = m_serverSpinner.getCount();
+            if (c > 0) {
+                String selected = m_serverSpinner.getSelectedItem().toString();
+                pr.write(selected + "\n");
+                for (int i = 0; i < c; i++) {
+                    String current = m_serverSpinner.getItemAtPosition(i).toString();
+                    if (!selected.equals(current)) {
+                        pr.write(current + "\n");
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
