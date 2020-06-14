@@ -8,7 +8,10 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +20,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Toast;
+
 import androidx.annotation.Nullable;
 import com.google.gson.JsonObject;
 import java.io.BufferedOutputStream;
@@ -42,8 +47,12 @@ public class JusticeFragment extends Fragment {
     private ArrayAdapter m_adapterForServerSpinner;
     private String server_hint = "<add server>";
     private static String mURLname;
+    private String mHTTPresult;
     private Spinner m_caseSpinner;
     private ArrayAdapter m_adapterForCaseSpinner;
+    private String case_hint = "<connect to server>";
+    private Button m_selectCaseButton;
+    private Button m_addCaseButton;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -114,6 +123,11 @@ public class JusticeFragment extends Fragment {
                                                                         CharSequence textHolder = input.getText();
                                                                         m_adapterForServerSpinner.add(textHolder);
                                                                         updateServerFile();
+                                                                    } else {
+                                                                        Toast toast = Toast.makeText(m_context, "Duplicate server name '"
+                                                                                + server + "'", Toast.LENGTH_LONG);
+                                                                        toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                        toast.show();
                                                                     }
                                                                 }
                                                             }
@@ -154,21 +168,21 @@ public class JusticeFragment extends Fragment {
         m_adapterForCaseSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
         m_adapterForCaseSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         m_caseSpinner.setAdapter(m_adapterForCaseSpinner);
-        CharSequence textHolder = "<connect to server>";
+        CharSequence textHolder = case_hint;
         m_adapterForCaseSpinner.add(textHolder);
-        Button selectCaseButton = (Button)m_view.findViewById(R.id.select_case_button);
-        selectCaseButton.setEnabled(false);
-        Button addCaseButton = (Button)m_view.findViewById(R.id.add_case_button);
-        addCaseButton.setEnabled(false);
+        m_selectCaseButton = (Button)m_view.findViewById(R.id.select_case_button);
+        m_selectCaseButton.setEnabled(false);
+        m_addCaseButton = (Button)m_view.findViewById(R.id.add_case_button);
+        m_addCaseButton.setEnabled(false);
 
-        selectCaseButton.setOnClickListener(new View.OnClickListener(){
+        m_selectCaseButton.setOnClickListener(new View.OnClickListener(){
 
             @Override
             public void onClick(View v) {
                 selectCase();
             }
         });
-        addCaseButton.setOnClickListener(new View.OnClickListener()
+        m_addCaseButton.setOnClickListener(new View.OnClickListener()
                                      {
                                          @Override
                                          public void onClick(View v)
@@ -182,20 +196,34 @@ public class JusticeFragment extends Fragment {
                                                      {
                                                          public void onClick(DialogInterface dialog, int whichButton)
                                                          {
-                                                             String caseVal = input.getText().toString();
-                                                             boolean isEmpty = caseVal == null || caseVal.trim().isEmpty();
+                                                             String caseName = input.getText().toString();
+                                                             boolean isEmpty = caseName == null || caseName.trim().isEmpty();
                                                              if (!isEmpty) {
                                                                  boolean dup = false;
                                                                  for (int i = 0, j = m_caseSpinner.getCount(); i < j; i++)
                                                                  {
-                                                                     if (m_adapterForCaseSpinner.getItem(i).toString().equals(caseVal)) {
+                                                                     if (m_adapterForCaseSpinner.getItem(i).toString().equals(caseName)) {
                                                                          dup = true;
                                                                          break;
                                                                      }
                                                                  }
                                                                  if (!dup) {
-                                                                     CharSequence textHolder = input.getText();
-                                                                     m_adapterForCaseSpinner.add(textHolder);
+                                                                     if (!isAlphanumeric(caseName))
+                                                                     {
+                                                                         Toast toast = Toast.makeText(m_context, "Invalid character in case name '"
+                                                                                 + caseName + "'", Toast.LENGTH_LONG);
+                                                                         toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                         toast.show();
+                                                                     } else {
+                                                                         CharSequence textHolder = input.getText();
+                                                                         m_adapterForCaseSpinner.add(textHolder);
+                                                                         m_selectCaseButton.setEnabled(true);
+                                                                     }
+                                                                 } else {
+                                                                     Toast toast = Toast.makeText(m_context, "Duplicate case name '"
+                                                                             + caseName + "'", Toast.LENGTH_LONG);
+                                                                     toast.setGravity(Gravity.CENTER, 0, 0);
+                                                                     toast.show();
                                                                  }
                                                              }
                                                          }
@@ -206,11 +234,87 @@ public class JusticeFragment extends Fragment {
         );
     }
 
+    public boolean isAlphanumeric(String str)
+    {
+        char[] charArray = str.toCharArray();
+        for(char c:charArray)
+        {
+            if (!Character.isLetterOrDigit(c) && c != ' ')
+                return false;
+        }
+        return true;
+    }
+
     private void getCases() {
         if (m_serverSpinner.getCount() > 0) {
             if (!m_serverSpinner.getSelectedItem().toString().equals(server_hint)) {
-                mURLname = m_serverSpinner.getSelectedItem().toString() + "/EvenTheOdds/rest/service/get_cases";
-                new HTTPgetTask().execute();
+                m_caseSpinner = (Spinner)m_view.findViewById(R.id.case_spinner);
+                m_adapterForCaseSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
+                m_adapterForCaseSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                m_caseSpinner.setAdapter(m_adapterForCaseSpinner);
+                m_selectCaseButton.setEnabled(false);
+                m_addCaseButton.setEnabled(false);
+                final String server = m_serverSpinner.getSelectedItem().toString();
+                mURLname = server + ":8080/EvenTheOdds/rest/service/get_cases";
+                if (!mURLname.startsWith("http"))
+                {
+                    mURLname = "http://" + mURLname;
+                }
+                new Thread(new Runnable(){
+                    @Override
+                    public void run() {
+                        Handler handler = new Handler(Looper.getMainLooper());
+                        try {
+                            final int code = HTTPget();
+                            if (code == 200) {
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (mHTTPresult.equals("[]")) {
+                                                    Toast toast = Toast.makeText(m_context, "No cases on server "
+                                                            + server, Toast.LENGTH_LONG);
+                                                    toast.setGravity(Gravity.CENTER, 0, 0);
+                                                    toast.show();
+                                        }
+                                        String[] cases = mHTTPresult.split("\\[");
+                                        cases = cases[1].split("\\]");
+                                        cases = cases[0].split(",");
+                                        for (String caseName : cases)
+                                        {
+                                            CharSequence textHolder = caseName.trim();
+                                            m_adapterForCaseSpinner.add(textHolder);
+                                        }
+                                        if (m_caseSpinner.getCount() > 0) {
+                                            m_selectCaseButton.setEnabled(true);
+                                        }
+                                        m_addCaseButton.setEnabled(true);
+                                    }
+                                });
+                            } else {
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Toast toast = Toast.makeText(m_context, "Cannot get cases: http code="
+                                                + code + ", result=" + mHTTPresult, Toast.LENGTH_LONG);
+                                        toast.setGravity(Gravity.CENTER, 0, 0);
+                                        toast.show();
+                                    }
+                                });
+                            }
+                        }
+                        catch (final Exception e) {
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast toast = Toast.makeText(m_context, "Cannot get cases: exception=" +
+                                            e.getMessage(), Toast.LENGTH_LONG);
+                                    toast.setGravity(Gravity.CENTER, 0, 0);
+                                    toast.show();
+                                }
+                            });
+                        }
+                    }
+                }).start();
             }
         }
     }
@@ -218,16 +322,16 @@ public class JusticeFragment extends Fragment {
     private void selectCase() {
     }
 
-    private static class HTTPgetTask extends AsyncTask<Void, Void, Void> {
-        @Override
-        protected Void doInBackground(Void... params) {
+    private int HTTPget() {
             HttpURLConnection urlConnection = null;
+            int code = -1;
+            mHTTPresult = "";
 
             try {
                 URL url = new URL(mURLname);
                 urlConnection = (HttpURLConnection) url.openConnection();
 
-                int code = urlConnection.getResponseCode();
+                code = urlConnection.getResponseCode();
                 if (code != 200) {
                     throw new IOException("Invalid response from server: " + code);
                 }
@@ -236,18 +340,17 @@ public class JusticeFragment extends Fragment {
                         urlConnection.getInputStream()));
                 String line;
                 while ((line = rd.readLine()) != null) {
-                    Log.i("data", line);
+                    mHTTPresult += line;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                mHTTPresult = e.getMessage();
             } finally {
                 if (urlConnection != null) {
                     urlConnection.disconnect();
                 }
             }
 
-            return null;
-        }
+            return code;
     }
 
     private static class HTTPpostTask extends AsyncTask<Void, Void, Void> {

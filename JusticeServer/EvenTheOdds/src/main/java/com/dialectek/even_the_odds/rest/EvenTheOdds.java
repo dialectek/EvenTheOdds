@@ -2,6 +2,8 @@
 
 package com.dialectek.even_the_odds.rest;
 
+import java.util.ArrayList;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -32,7 +34,17 @@ public class EvenTheOdds
    {
       synchronized (lock)
       {
-    	 String output = String.join(", ", evenApp.get_cases());
+    	 String output = "[";
+    	 ArrayList<String> cases = evenApp.get_cases();
+    	 for (int i = 0, j = cases.size(); i < j; i++)
+    	 {
+    		 output += cases.get(i);
+    		 if (i < j - 1)
+    		 {
+    			 output += ", ";
+    		 }
+    	 }
+    	 output += "]";
          return(Response.status(200).entity(output).build());
       }
    }
