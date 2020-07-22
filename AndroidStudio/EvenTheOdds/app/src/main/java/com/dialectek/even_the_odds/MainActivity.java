@@ -42,7 +42,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 public final class MainActivity extends AppCompatActivity {
-    public static final String TAG = "MainActivity";
+    public static final String TAG = "EvenTheOdds";
 
     public static String mRecordingFile;
     public static String mServersFile;
@@ -202,12 +202,12 @@ public final class MainActivity extends AppCompatActivity {
                                               if (new File(mRecordingFile).exists()) {
                                                   DateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy z hh:mm:ss aa");
                                                   String fileString = dateFormat.format(new Date()).toString() + ".3gp";
-                                                  RecordManager.Default_File_Name = fileString;
+                                                  FileManager.Default_File_Name = fileString;
                                               } else {
-                                                  RecordManager.Default_File_Name = "";
+                                                  FileManager.Default_File_Name = "";
                                               }
-                                              RecordManager recordSaver = new RecordManager(MainActivity.this, m_dataDirectory, "Save",
-                                                      new RecordManager.Listener() {
+                                              FileManager recordSaver = new FileManager(MainActivity.this, m_dataDirectory, FileManager.SAVE_RECORD,
+                                                      new FileManager.Listener() {
                                                           @Override
                                                           public void onSave(String savedFile) {
                                                               m_saved = savedFile;
@@ -243,9 +243,9 @@ public final class MainActivity extends AppCompatActivity {
                                             @Override
                                             public void onClick(View v) {
                                                 mPlayerAdapter.reset();
-                                                RecordManager.Default_File_Name = "";
-                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory, "Browse",
-                                                        new RecordManager.Listener() {
+                                                FileManager.Default_File_Name = "";
+                                                FileManager recordBrowser = new FileManager(MainActivity.this, m_dataDirectory, FileManager.BROWSE_RECORDS,
+                                                        new FileManager.Listener() {
                                                             @Override
                                                             public void onSave(String savedFile) {
                                                             }
@@ -329,9 +329,9 @@ public final class MainActivity extends AppCompatActivity {
                                             @Override
                                             public void onClick(View v) {
                                                 mPlayerAdapter.reset();
-                                                RecordManager.Default_File_Name = "";
-                                                RecordManager recordBrowser = new RecordManager(MainActivity.this, m_dataDirectory, "Delete",
-                                                        new RecordManager.Listener() {
+                                                FileManager.Default_File_Name = "";
+                                                FileManager recordDeleter = new FileManager(MainActivity.this, m_dataDirectory, FileManager.DELETE_RECORD,
+                                                        new FileManager.Listener() {
                                                             @Override
                                                             public void onSave(String savedFile) {
                                                             }
@@ -353,7 +353,7 @@ public final class MainActivity extends AppCompatActivity {
                                                             }
                                                         }
                                                 );
-                                                recordBrowser.chooseFile_or_Dir();
+                                                recordDeleter.chooseFile_or_Dir();
                                             }
                                         }
         );
@@ -667,5 +667,16 @@ public final class MainActivity extends AppCompatActivity {
         fragmentTransaction.replace(R.id.frameLayout, fragment);
         fragmentTransaction.addToBackStack(null);
         fragmentTransaction.commit();
+    }
+
+    public static boolean isAlphanumeric(String str)
+    {
+        char[] charArray = str.toCharArray();
+        for(char c:charArray)
+        {
+            if (!Character.isLetterOrDigit(c) && c != ' ')
+                return false;
+        }
+        return true;
     }
 }
