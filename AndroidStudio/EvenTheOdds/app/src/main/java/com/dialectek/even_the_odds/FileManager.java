@@ -202,8 +202,7 @@ public class FileManager
                        }
                     }
             );
-            dialogBuilder.setNeutralButton("Storage", new OnClickListener()
-                    {
+            dialogBuilder.setNeutralButton("Storage", new OnClickListener() {
                        @Override
                        public void onClick(DialogInterface dialog, int which) {
                           if (m_Listener != null) {
@@ -254,6 +253,50 @@ public class FileManager
                        }
                     }
             ).setNegativeButton("Cancel", null);
+            break;
+
+         case SELECT_CASE:
+            dialogBuilder.setPositiveButton("Select", new OnClickListener()
+                    {
+                       @Override
+                       public void onClick(DialogInterface dialog, int which)
+                       {
+                          Selected_File_Name = "";
+                          String toDir = m_dir + "/";
+                          String displayDir = toDir.replace(m_dataDirectory, "");
+                          if (m_Listener != null)
+                          {
+                             m_Listener.onSelect(toDir);
+                          }
+                       }
+                    }
+            ).setNegativeButton("Cancel", null);
+            break;
+
+         case NEW_CASE:
+            dialogBuilder.setPositiveButton("Select", new OnClickListener()
+                    {
+                       @Override
+                       public void onClick(DialogInterface dialog, int which)
+                       {
+                          Selected_File_Name = m_input_text.getText() + "";
+                          String selectedFile = m_dir + "/" + Selected_File_Name;
+                          if (new File(selectedFile).exists())
+                          {
+                             if (m_Listener != null)
+                             {
+                                m_Listener.onSelect(selectedFile);
+                             }
+                          } else {
+                             String displayFile = selectedFile.replace(m_dataDirectory, "");
+                             Toast toast = Toast.makeText(m_context, displayFile + "  does not exist", Toast.LENGTH_LONG);
+                             toast.setGravity(Gravity.CENTER, 0, 0);
+                             toast.show();
+                          }
+                       }
+                    }
+            );
+            dialogBuilder.setNegativeButton("Cancel", null);
             break;
       }
 
@@ -394,6 +437,12 @@ public class FileManager
          case DELETE_RECORD:
             m_operationView.setText("Delete:");
             break;
+         case SELECT_CASE:
+            m_operationView.setText("Select:");
+            break;
+         case NEW_CASE:
+            m_operationView.setText("Select:");
+            break;
       }
 
       m_operationView.setGravity(Gravity.CENTER_VERTICAL);
@@ -405,7 +454,7 @@ public class FileManager
       operationLayout.setOrientation(LinearLayout.VERTICAL);
       operationLayout.addView(m_operationView);
 
-      if (Select_type == SAVE_RECORD)
+      if (Select_type == SAVE_RECORD || Select_type == SELECT_CASE)
       {
          // Create New Folder button.
          Button newDirButton = new Button(m_context);
@@ -461,7 +510,7 @@ public class FileManager
          operationLayout.addView(newDirButton);
       }
 
-      if (Select_type == BROWSE_RECORDS)
+      if (Select_type == BROWSE_RECORDS || Select_type == NEW_CASE)
       {
          // Create Search button.
          Button searchButton = new Button(m_context);
@@ -608,7 +657,9 @@ public class FileManager
             m_input_text.setEnabled(false);
          }
       }
-      titleLayout.addView(m_input_text);
+      if (Select_type != SELECT_CASE) {
+         titleLayout.addView(m_input_text);
+      }
 
       // Set views and finish dialog builder.
       dialogBuilder.setView(titleLayout);
@@ -696,6 +747,16 @@ public class FileManager
    {
       m_subdirs.clear();
       m_subdirs.addAll(getDirectories(m_dir));
+      if (Select_type == SELECT_CASE) {
+         ArrayList<String> tmpdirs = new ArrayList<String>();
+         for (String d : m_subdirs) {
+            File df = new File(m_dir + "/" + d);
+            if (df.exists() && df.isDirectory()) {
+               tmpdirs.add(d);
+            }
+         }
+         m_subdirs = tmpdirs;
+      }
       m_titleView.setText(m_dir.replace(m_dataDirectory, "") + "/");
       m_showdirs.clear();
       int index = m_showIndex.size() - 1;

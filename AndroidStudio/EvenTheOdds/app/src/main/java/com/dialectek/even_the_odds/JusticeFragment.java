@@ -212,7 +212,7 @@ public class JusticeFragment extends Fragment {
                                              
                                              // Show new case input dialog
                                              new AlertDialog.Builder(m_context).
-                                                     setTitle("Case:").
+                                                     setTitle("Case name:").
                                                      setView(input).setPositiveButton("OK", new DialogInterface.OnClickListener()
                                                      {
                                                          public void onClick(DialogInterface dialog, int whichButton)
@@ -462,11 +462,11 @@ public class JusticeFragment extends Fragment {
                 new FileManager.Listener() {
                     @Override
                     public void onSave(String savedFile) {
-                        mResult = true;
                     }
 
                     @Override
                     public void onSelect(String selectedFile) {
+                        mResult = true;
                     }
 
                     @Override
