@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,21 +25,33 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class JusticeFragment extends Fragment {
 
     private View m_view;
     private Context m_context;
     private String m_dataDirectory;
+    private String m_tmpDirectory;
     private Spinner m_serverSpinner;
     private ArrayAdapter m_adapterForServerSpinner;
     private String server_hint = "<add server>";
@@ -49,7 +62,7 @@ public class JusticeFragment extends Fragment {
     private String case_empty_hint = "<new case>";
     private Button m_selectCaseButton;
     private Button m_newCaseButton;
-    private boolean mResult;
+    private String mSelectedFileName;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -61,6 +74,13 @@ public class JusticeFragment extends Fragment {
         } catch (IOException ioe) {
         }
         m_dataDirectory = rootDir + "/content";
+        m_tmpDirectory = rootDir + "/tmp";
+        File dir = new File(m_tmpDirectory);
+        if (!dir.exists()) {
+            if (!dir.mkdir()) {
+                Log.e(MainActivity.TAG, "onCreateView: cannot create tmp directory " + m_tmpDirectory);
+            }
+        }
         return m_view;
     }
 
@@ -246,17 +266,7 @@ public class JusticeFragment extends Fragment {
                                                                          toast.setGravity(Gravity.CENTER, 0, 0);
                                                                          toast.show();
                                                                      } else {
-                                                                         if (newCase(caseName)) {
-                                                                             CharSequence textHolder = caseName;
-                                                                             m_adapterForCaseSpinner.add(textHolder);
-                                                                             m_caseSpinner.setSelection(m_caseSpinner.getCount() - 1);
-                                                                             m_selectCaseButton.setEnabled(true);
-                                                                         } else {
-                                                                             if (m_caseSpinner.getCount() == 0) {
-                                                                                 CharSequence textHolder = case_empty_hint;
-                                                                                 m_adapterForCaseSpinner.add(textHolder);
-                                                                             }
-                                                                         }
+                                                                         newCase(caseName);
                                                                      }
                                                                  } else {
                                                                      Toast toast = Toast.makeText(m_context, "Duplicate case name '"
@@ -429,8 +439,7 @@ public class JusticeFragment extends Fragment {
     }
 
     // Select case.
-    private boolean selectCase(String caseName) {
-        mResult = false;
+    private void selectCase(String caseName) {
         FileManager caseSelector = new FileManager(m_context, m_dataDirectory, FileManager.SELECT_CASE,
                 new FileManager.Listener() {
                     @Override
@@ -439,7 +448,7 @@ public class JusticeFragment extends Fragment {
 
                     @Override
                     public void onSelect(String selectedFile) {
-                        mResult = true;
+                        // TODO: download and unzip.
                     }
 
                     @Override
@@ -452,21 +461,146 @@ public class JusticeFragment extends Fragment {
                 }
         );
         caseSelector.chooseFile_or_Dir();
-        return mResult;
+    }
+
+    // Unzip to target directory.
+    public boolean unzip(String zipFile, String targetDir) {
+        ZipInputStream zin = null;
+        try {
+            FileInputStream fin = new FileInputStream(zipFile);
+            zin = new ZipInputStream(fin);
+            ZipEntry ze = null;
+            while ((ze = zin.getNextEntry()) != null) {
+                if (ze.isDirectory()) {
+                    File d = new File(targetDir + ze.getName());
+                    if (d.exists()) {
+                        if (d.isDirectory()) {
+                            zin.close();
+                            return false;
+                        }
+                    } else {
+                        if (!d.mkdir()) {
+                            zin.close();
+                            return false;
+                        }
+                    }
+                } else {
+                    FileOutputStream fout = new FileOutputStream(targetDir + ze.getName());
+                    for (int c = zin.read(); c != -1; c = zin.read()) {
+                        fout.write(c);
+                    }
+                    zin.closeEntry();
+                    fout.close();
+                }
+            }
+            zin.close();
+        } catch (Exception e) {
+            if (zin != null) {
+                try {
+                    zin.close();
+                } catch (Exception ex) {}
+            }
+            return false;
+        }
+        return true;
+    }
+
+    // Unzip to data stream.
+    private boolean unzip(DataInputStream zipInputStream, String targetDir) {
+        ZipInputStream zin = null;
+        try {
+            zin = new ZipInputStream(zipInputStream);
+            ZipEntry ze = null;
+            while ((ze = zin.getNextEntry()) != null) {
+                if (ze.isDirectory()) {
+                    File d = new File(targetDir + ze.getName());
+                    if (d.exists()) {
+                        if (d.isDirectory()) {
+                            return false;
+                        }
+                    } else {
+                        if (!d.mkdir()) {
+                            return false;
+                        }
+                    }
+                } else {
+                    FileOutputStream fout = new FileOutputStream(targetDir + ze.getName());
+                    for (int c = zin.read(); c != -1; c = zin.read()) {
+                        fout.write(c);
+                    }
+                    zin.closeEntry();
+                    fout.close();
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
     }
 
     // New case.
-    private boolean newCase(String caseName) {
-        mResult = false;
+    private void newCase(final String caseName) {
         FileManager caseAdder = new FileManager(m_context, m_dataDirectory, FileManager.NEW_CASE,
                 new FileManager.Listener() {
                     @Override
                     public void onSave(String savedFile) {
                     }
 
+                    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
                     @Override
                     public void onSelect(String selectedFile) {
-                        mResult = true;
+                        mSelectedFileName = selectedFile;
+                        new Thread(new Runnable() {
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            @Override
+                            public void run() {
+                                // Zip case and upload.
+                                String zipFileName = m_tmpDirectory + "/" + caseName + ".zip";
+                                if (zip(mSelectedFileName, zipFileName)) {
+                                    File zipFile = new File(zipFileName);
+                                    if (uploadCase(caseName, zipFile)) {
+                                        CharSequence textHolder = caseName;
+                                        m_adapterForCaseSpinner.add(textHolder);
+                                        m_caseSpinner.setSelection(m_caseSpinner.getCount() - 1);
+                                        m_selectCaseButton.setEnabled(true);
+                                        handler.post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Toast toast = Toast.makeText(m_context, "Case name '"
+                                                        + caseName + "' created", Toast.LENGTH_LONG);
+                                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                                toast.show();
+                                            }
+                                        });
+                                    } else {
+                                        if (m_caseSpinner.getCount() == 0) {
+                                            CharSequence textHolder = case_empty_hint;
+                                            m_adapterForCaseSpinner.add(textHolder);
+                                        }
+                                        handler.post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Toast toast = Toast.makeText(m_context, "Cannot upload case name '"
+                                                        + caseName + "'", Toast.LENGTH_LONG);
+                                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                                toast.show();
+                                            }
+                                        });
+                                    }
+                                    zipFile.delete();
+                                } else {
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            Toast toast = Toast.makeText(m_context, "Cannot zip case name '"
+                                                    + caseName + "'", Toast.LENGTH_LONG);
+                                            toast.setGravity(Gravity.CENTER, 0, 0);
+                                            toast.show();
+                                        }
+                                    });
+                                }
+                            }
+                        }).start();
                     }
 
                     @Override
@@ -479,81 +613,162 @@ public class JusticeFragment extends Fragment {
                 }
         );
         caseAdder.chooseFile_or_Dir();
-        return mResult;
+    }
+
+    // Zip directory to file.
+    private boolean zip(String sourceDirName, String zipFileName) {
+        File sourceDir = new File(sourceDirName);
+        List<File> fileList = getSubFiles(sourceDir);
+        ZipOutputStream zout = null;
+        try {
+            File zipFile = new File(zipFileName);
+            zipFile.delete();
+            zout = new ZipOutputStream(new FileOutputStream(zipFile));
+            int bufferSize = 1024;
+            byte[] buf = new byte[bufferSize];
+            ZipEntry zipEntry;
+            for(int i = 0; i < fileList.size(); i++) {
+                File file = fileList.get(i);
+                zipEntry = new ZipEntry(sourceDir.toURI().relativize(file.toURI()).getPath());
+                zout.putNextEntry(zipEntry);
+                if (!file.isDirectory()) {
+                    InputStream inputStream = new BufferedInputStream(new FileInputStream(file));
+                    int readLength;
+                    while ((readLength = inputStream.read(buf, 0, bufferSize)) != -1) {
+                        zout.write(buf, 0, readLength);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (zout != null) {
+                try {
+                    zout.close();
+                } catch (Exception ex) {
+                }
+            }
+        }
+        return true;
+    }
+
+    // Zip directory to data stream.
+    private boolean zip(String sourceDirName, DataOutputStream zipOutputStream) {
+        File sourceDir = new File(sourceDirName);
+        List<File> fileList = getSubFiles(sourceDir);
+        ZipOutputStream zout = null;
+        try {
+            zout = new ZipOutputStream(zipOutputStream);
+            int bufferSize = 1024;
+            byte[] buf = new byte[bufferSize];
+            ZipEntry zipEntry;
+            for(int i = 0; i < fileList.size(); i++) {
+                File file = fileList.get(i);
+                zipEntry = new ZipEntry(sourceDir.toURI().relativize(file.toURI()).getPath());
+                zout.putNextEntry(zipEntry);
+                if (!file.isDirectory()) {
+                    InputStream inputStream = new BufferedInputStream(new FileInputStream(file));
+                    int readLength;
+                    while ((readLength = inputStream.read(buf, 0, bufferSize)) != -1) {
+                        zipOutputStream.write(buf, 0, readLength);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
+    public static List<File> getSubFiles(File baseDir) {
+        List<File> fileList = new ArrayList<File>();
+        if (baseDir.isFile()) {
+          fileList.add(baseDir);
+        } else {
+            File[] tmpList = baseDir.listFiles();
+            for (File file : tmpList) {
+                fileList.add(file);
+                if (file.isDirectory()) {
+                    fileList.addAll(getSubFiles(file));
+                }
+            }
+        }
+        return fileList;
     }
 
     // Upload case.
-    private void uploadCase() {
-        final String charset = "UTF-8";
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private boolean uploadCase(String caseName, File uploadZip) {
+        String charset = "UTF-8";
+        boolean result = false;
 
         String s = mServer + "/EvenTheOdds/rest/service/new_case";
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
         }
-        final String URLname = s;
-        new Thread(new Runnable(){
-            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-            @Override
-            public void run() {
-                Handler handler = new Handler(Looper.getMainLooper());
-                HTTPpost http = null;
-                try {
-                    http = new HTTPpost(URLname, charset, false);
-                    final int status = http.post();
-                    if (status == HttpURLConnection.HTTP_OK) {
-                        BufferedReader rd = new BufferedReader(new InputStreamReader(
-                                http.httpConn.getInputStream()));
-                        String s = "";
-                        String line;
-                        while ((line = rd.readLine()) != null) {
-                            s += line;
-                        }
-                        rd.close();
-                        final String response = s;
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast toast = Toast.makeText(m_context, "Case selected",
-                                        Toast.LENGTH_LONG);
-                                toast.setGravity(Gravity.CENTER, 0, 0);
-                                toast.show();
-                            }
-                        });
-                    } else {
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast toast;
-                                if (status == -1) {
-                                    toast = Toast.makeText(m_context, "Cannot select case",
-                                            Toast.LENGTH_LONG);
-                                } else {
-                                    toast = Toast.makeText(m_context, "Cannot select case: status="
-                                            + status, Toast.LENGTH_LONG);
-                                }
-                                toast.setGravity(Gravity.CENTER, 0, 0);
-                                toast.show();
-                            }
-                        });
-                    }
+        String URLname = s;
+        final String caseNamef = caseName;
+        File uploadZipf = uploadZip;
+        Handler handler = new Handler(Looper.getMainLooper());
+        HTTPpost http = null;
+        try {
+            http = new HTTPpost(URLname, charset, false);
+            http.addFilePart(caseNamef, uploadZipf);
+            final int status = http.post();
+            if (status == HttpURLConnection.HTTP_OK) {
+                BufferedReader rd = new BufferedReader(new InputStreamReader(
+                        http.httpConn.getInputStream()));
+                s = "";
+                String line;
+                while ((line = rd.readLine()) != null) {
+                    s += line;
                 }
-                catch (final Exception e) {
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast toast = Toast.makeText(m_context, "Cannot get cases: exception=" +
-                                    e.getMessage(), Toast.LENGTH_LONG);
-                            toast.setGravity(Gravity.CENTER, 0, 0);
-                            toast.show();
-                        }
-                    });
-                } finally {
-                    if (http != null) {
-                        http.close();
+                rd.close();
+                final String response = s;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast toast = Toast.makeText(m_context, "Case " + caseNamef + " uploaded",
+                                Toast.LENGTH_LONG);
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
                     }
-                }
+                });
+                result = true;
+            } else {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast toast;
+                        if (status == -1) {
+                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef,
+                                    Toast.LENGTH_LONG);
+                        } else {
+                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": status="
+                                    + status, Toast.LENGTH_LONG);
+                        }
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                    }
+                });
             }
-        }).start();
+        }
+        catch (final Exception e) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": exception=" +
+                            e.getMessage(), Toast.LENGTH_LONG);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
+                }
+            });
+        } finally {
+            if (http != null) {
+                http.close();
+            }
+        }
+        return result;
     }
 }

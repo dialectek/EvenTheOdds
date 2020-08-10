@@ -137,10 +137,10 @@ public class HTTPpost {
      * @param name  - name of the header field
      * @param value - value of the header field
      */
-    //public void addHeaderField(String name, String value) {
-    //    writer.append(name + ": " + value).append(LINE_FEED);
-    //    writer.flush();
-    //}
+    public void addHeaderField(String name, String value) {
+        writer.append(name + ": " + value).append(LINE_FEED);
+        writer.flush();
+    }
 
     /**
      * Completes the request and receives response from the server.

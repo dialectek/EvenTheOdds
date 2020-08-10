@@ -263,7 +263,6 @@ public class FileManager
                        {
                           Selected_File_Name = "";
                           String toDir = m_dir + "/";
-                          String displayDir = toDir.replace(m_dataDirectory, "");
                           if (m_Listener != null)
                           {
                              m_Listener.onSelect(toDir);
@@ -281,22 +280,13 @@ public class FileManager
                        {
                           Selected_File_Name = m_input_text.getText() + "";
                           String selectedFile = m_dir + "/" + Selected_File_Name;
-                          if (new File(selectedFile).exists())
+                          if (m_Listener != null)
                           {
-                             if (m_Listener != null)
-                             {
-                                m_Listener.onSelect(selectedFile);
-                             }
-                          } else {
-                             String displayFile = selectedFile.replace(m_dataDirectory, "");
-                             Toast toast = Toast.makeText(m_context, displayFile + "  does not exist", Toast.LENGTH_LONG);
-                             toast.setGravity(Gravity.CENTER, 0, 0);
-                             toast.show();
+                             m_Listener.onSelect(selectedFile);
                           }
                        }
                     }
-            );
-            dialogBuilder.setNegativeButton("Cancel", null);
+            ).setNegativeButton("Cancel", null);
             break;
       }
 

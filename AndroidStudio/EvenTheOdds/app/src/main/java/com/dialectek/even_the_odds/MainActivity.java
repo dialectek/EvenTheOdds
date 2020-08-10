@@ -78,6 +78,12 @@ public final class MainActivity extends AppCompatActivity {
             file.delete();
         }
         m_dataDirectory = rootDir + "/content";
+        File dir = new File(m_dataDirectory);
+        if (!dir.exists()) {
+            if (!dir.mkdir()) {
+                Log.e(TAG, "onCreate: cannot create data directory " + m_dataDirectory);
+            }
+        }
         mServersFile = rootDir + "/servers.txt";
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
