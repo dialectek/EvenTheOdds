@@ -1,5 +1,9 @@
 package com.dialectek.even_the_odds;
 
+import android.os.Build;
+
+import androidx.annotation.RequiresApi;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -66,6 +70,7 @@ public class MultipartUtilityV2 {
      * @param uploadFile a File to be uploaded
      * @throws IOException
      */
+    @RequiresApi(api = Build.VERSION_CODES.O)
     public void addFilePart(String fieldName, File uploadFile)
             throws IOException {
         String fileName = uploadFile.getName();

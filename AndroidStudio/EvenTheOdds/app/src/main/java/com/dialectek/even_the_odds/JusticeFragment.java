@@ -26,7 +26,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -537,6 +536,82 @@ public class JusticeFragment extends Fragment {
         }
         return true;
     }
+    // Download case.
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private boolean downloadCase(String caseName, File uploadZip) {
+        String charset = "UTF-8";
+        boolean result = false;
+
+        String s = mServer + "/EvenTheOdds/rest/service/new_case";
+        if (!s.startsWith("http"))
+        {
+            s = "http://" + s;
+        }
+        String URLname = s;
+        final String caseNamef = caseName;
+        File uploadZipf = uploadZip;
+        Handler handler = new Handler(Looper.getMainLooper());
+        HTTPpost http = null;
+        try {
+            http = new HTTPpost(URLname, charset, false);
+            http.addFormField("case_name", caseNamef);
+            http.addFilePart(caseNamef, uploadZipf);
+            final int status = http.post();
+            if (status == HttpURLConnection.HTTP_OK) {
+                BufferedReader rd = new BufferedReader(new InputStreamReader(
+                        http.httpConn.getInputStream()));
+                s = "";
+                String line;
+                while ((line = rd.readLine()) != null) {
+                    s += line;
+                }
+                rd.close();
+                final String response = s;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast toast = Toast.makeText(m_context, "Case " + caseNamef + " uploaded",
+                                Toast.LENGTH_LONG);
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                    }
+                });
+                result = true;
+            } else {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast toast;
+                        if (status == -1) {
+                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef,
+                                    Toast.LENGTH_LONG);
+                        } else {
+                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": status="
+                                    + status, Toast.LENGTH_LONG);
+                        }
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                    }
+                });
+            }
+        }
+        catch (final Exception e) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": exception=" +
+                            e.getMessage(), Toast.LENGTH_LONG);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
+                }
+            });
+        } finally {
+            if (http != null) {
+                http.close();
+            }
+        }
+        return result;
+    }
 
     // New case.
     private void newCase(final String caseName) {
@@ -559,13 +634,13 @@ public class JusticeFragment extends Fragment {
                                 if (zip(mSelectedFileName, zipFileName)) {
                                     File zipFile = new File(zipFileName);
                                     if (uploadCase(caseName, zipFile)) {
-                                        CharSequence textHolder = caseName;
-                                        m_adapterForCaseSpinner.add(textHolder);
-                                        m_caseSpinner.setSelection(m_caseSpinner.getCount() - 1);
-                                        m_selectCaseButton.setEnabled(true);
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
+                                                CharSequence textHolder = caseName;
+                                                m_adapterForCaseSpinner.add(textHolder);
+                                                m_caseSpinner.setSelection(m_caseSpinner.getCount() - 1);
+                                                m_selectCaseButton.setEnabled(true);
                                                 Toast toast = Toast.makeText(m_context, "Case name '"
                                                         + caseName + "' created", Toast.LENGTH_LONG);
                                                 toast.setGravity(Gravity.CENTER, 0, 0);
@@ -573,17 +648,17 @@ public class JusticeFragment extends Fragment {
                                             }
                                         });
                                     } else {
-                                        if (m_caseSpinner.getCount() == 0) {
-                                            CharSequence textHolder = case_empty_hint;
-                                            m_adapterForCaseSpinner.add(textHolder);
-                                        }
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
-                                                Toast toast = Toast.makeText(m_context, "Cannot upload case name '"
-                                                        + caseName + "'", Toast.LENGTH_LONG);
-                                                toast.setGravity(Gravity.CENTER, 0, 0);
-                                                toast.show();
+                                            if (m_caseSpinner.getCount() == 0) {
+                                                CharSequence textHolder = case_empty_hint;
+                                                m_adapterForCaseSpinner.add(textHolder);
+                                            }
+                                            Toast toast = Toast.makeText(m_context, "Cannot upload case name '"
+                                                    + caseName + "'", Toast.LENGTH_LONG);
+                                            toast.setGravity(Gravity.CENTER, 0, 0);
+                                            toast.show();
                                             }
                                         });
                                     }
@@ -702,7 +777,7 @@ public class JusticeFragment extends Fragment {
         String charset = "UTF-8";
         boolean result = false;
 
-        String s = mServer + "/EvenTheOdds/rest/service/new_case";
+        String s = mServer + "/EvenTheOdds/rest/service/new_case/" + caseName;
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
@@ -714,18 +789,9 @@ public class JusticeFragment extends Fragment {
         HTTPpost http = null;
         try {
             http = new HTTPpost(URLname, charset, false);
-            http.addFilePart(caseNamef, uploadZipf);
+            http.addFilePart("file_name", uploadZipf);
             final int status = http.post();
             if (status == HttpURLConnection.HTTP_OK) {
-                BufferedReader rd = new BufferedReader(new InputStreamReader(
-                        http.httpConn.getInputStream()));
-                s = "";
-                String line;
-                while ((line = rd.readLine()) != null) {
-                    s += line;
-                }
-                rd.close();
-                final String response = s;
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
