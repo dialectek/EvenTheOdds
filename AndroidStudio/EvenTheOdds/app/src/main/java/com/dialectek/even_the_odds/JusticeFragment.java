@@ -37,6 +37,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
@@ -438,7 +439,7 @@ public class JusticeFragment extends Fragment {
     }
 
     // Select case.
-    private void selectCase(String caseName) {
+    private void selectCase(final String caseName) {
         FileManager caseSelector = new FileManager(m_context, m_dataDirectory, FileManager.SELECT_CASE,
                 new FileManager.Listener() {
                     @Override
@@ -446,8 +447,22 @@ public class JusticeFragment extends Fragment {
                     }
 
                     @Override
-                    public void onSelect(String selectedFile) {
-                        // TODO: download and unzip.
+                    public void onSelect(String selectedDir) {
+                        mSelectedFileName = selectedDir;
+                        new Thread(new Runnable() {
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+                            @Override
+                            public void run() {
+                                // Download case and unzip to selected directory.
+                                String zipFileName = m_tmpDirectory + "/" + caseName + ".zip";
+                                File zipFile = new File(zipFileName);
+                                if (downloadCase(caseName, zipFile))
+                                {
+
+                                }
+                            }
+                        }).start();
                     }
 
                     @Override
@@ -460,6 +475,77 @@ public class JusticeFragment extends Fragment {
                 }
         );
         caseSelector.chooseFile_or_Dir();
+    }
+
+    // Download case.
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private boolean downloadCase(final String caseName, final File downloadZip) {
+        String charset = "UTF-8";
+        boolean result = false;
+
+        String s = mServer + "/EvenTheOdds/rest/service/get_case/" + caseName;
+        if (!s.startsWith("http"))
+        {
+            s = "http://" + s;
+        }
+        String URLname = s;
+        Handler handler = new Handler(Looper.getMainLooper());
+        HTTPget http = null;
+        try {
+            http = new HTTPget(URLname);
+            final int status = http.get();
+            if (status == HttpURLConnection.HTTP_OK) {
+                InputStream inputStream = http.httpConn.getInputStream();
+                byte[] buffer = new byte[inputStream.available()];
+                inputStream.read(buffer);
+                OutputStream outputStream = new FileOutputStream(downloadZip);
+                outputStream.write(buffer);
+                inputStream.close();
+                outputStream.close();
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast toast = Toast.makeText(m_context, "Case " + caseName + " downloaded",
+                                Toast.LENGTH_LONG);
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                    }
+                });
+                result = true;
+            } else {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast toast;
+                        if (status == -1) {
+                            toast = Toast.makeText(m_context, "Cannot download case " + caseName,
+                                    Toast.LENGTH_LONG);
+                        } else {
+                            toast = Toast.makeText(m_context, "Cannot download case " + caseName + ": status="
+                                    + status, Toast.LENGTH_LONG);
+                        }
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                    }
+                });
+            }
+        }
+        catch (final Exception e) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast toast = Toast.makeText(m_context, "Cannot download case " + caseName + ": exception=" +
+                            e.getMessage(), Toast.LENGTH_LONG);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
+                }
+            });
+        } finally {
+            if (http != null) {
+                http.close();
+            }
+        }
+        return result;
     }
 
     // Unzip to target directory.
@@ -535,82 +621,6 @@ public class JusticeFragment extends Fragment {
             return false;
         }
         return true;
-    }
-    // Download case.
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private boolean downloadCase(String caseName, File uploadZip) {
-        String charset = "UTF-8";
-        boolean result = false;
-
-        String s = mServer + "/EvenTheOdds/rest/service/new_case";
-        if (!s.startsWith("http"))
-        {
-            s = "http://" + s;
-        }
-        String URLname = s;
-        final String caseNamef = caseName;
-        File uploadZipf = uploadZip;
-        Handler handler = new Handler(Looper.getMainLooper());
-        HTTPpost http = null;
-        try {
-            http = new HTTPpost(URLname, charset, false);
-            http.addFormField("case_name", caseNamef);
-            http.addFilePart(caseNamef, uploadZipf);
-            final int status = http.post();
-            if (status == HttpURLConnection.HTTP_OK) {
-                BufferedReader rd = new BufferedReader(new InputStreamReader(
-                        http.httpConn.getInputStream()));
-                s = "";
-                String line;
-                while ((line = rd.readLine()) != null) {
-                    s += line;
-                }
-                rd.close();
-                final String response = s;
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast toast = Toast.makeText(m_context, "Case " + caseNamef + " uploaded",
-                                Toast.LENGTH_LONG);
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                    }
-                });
-                result = true;
-            } else {
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast toast;
-                        if (status == -1) {
-                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef,
-                                    Toast.LENGTH_LONG);
-                        } else {
-                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": status="
-                                    + status, Toast.LENGTH_LONG);
-                        }
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                    }
-                });
-            }
-        }
-        catch (final Exception e) {
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    Toast toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": exception=" +
-                            e.getMessage(), Toast.LENGTH_LONG);
-                    toast.setGravity(Gravity.CENTER, 0, 0);
-                    toast.show();
-                }
-            });
-        } finally {
-            if (http != null) {
-                http.close();
-            }
-        }
-        return result;
     }
 
     // New case.
@@ -773,7 +783,7 @@ public class JusticeFragment extends Fragment {
 
     // Upload case.
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private boolean uploadCase(String caseName, File uploadZip) {
+    private boolean uploadCase(final String caseName, final File uploadZip) {
         String charset = "UTF-8";
         boolean result = false;
 
@@ -783,19 +793,17 @@ public class JusticeFragment extends Fragment {
             s = "http://" + s;
         }
         String URLname = s;
-        final String caseNamef = caseName;
-        File uploadZipf = uploadZip;
         Handler handler = new Handler(Looper.getMainLooper());
         HTTPpost http = null;
         try {
             http = new HTTPpost(URLname, charset, false);
-            http.addFilePart("file_name", uploadZipf);
+            http.addFilePart("file_name", uploadZip);
             final int status = http.post();
             if (status == HttpURLConnection.HTTP_OK) {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        Toast toast = Toast.makeText(m_context, "Case " + caseNamef + " uploaded",
+                        Toast toast = Toast.makeText(m_context, "Case " + caseName + " uploaded",
                                 Toast.LENGTH_LONG);
                         toast.setGravity(Gravity.CENTER, 0, 0);
                         toast.show();
@@ -808,10 +816,10 @@ public class JusticeFragment extends Fragment {
                     public void run() {
                         Toast toast;
                         if (status == -1) {
-                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef,
+                            toast = Toast.makeText(m_context, "Cannot upload case " + caseName,
                                     Toast.LENGTH_LONG);
                         } else {
-                            toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": status="
+                            toast = Toast.makeText(m_context, "Cannot upload case " + caseName + ": status="
                                     + status, Toast.LENGTH_LONG);
                         }
                         toast.setGravity(Gravity.CENTER, 0, 0);
@@ -824,7 +832,7 @@ public class JusticeFragment extends Fragment {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    Toast toast = Toast.makeText(m_context, "Cannot upload case " + caseNamef + ": exception=" +
+                    Toast toast = Toast.makeText(m_context, "Cannot upload case " + caseName + ": exception=" +
                             e.getMessage(), Toast.LENGTH_LONG);
                     toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();

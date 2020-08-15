@@ -45,15 +45,10 @@ public class HTTPget {
 
     public int get() {
         int status = -1;
-
         try {
             URL url = new URL(mURLname);
             httpConn = (HttpURLConnection) url.openConnection();
-
             status = httpConn.getResponseCode();
-            if (status != HttpURLConnection.HTTP_OK) {
-                throw new IOException("Invalid response from server: " + status);
-            }
         } catch (Exception e) {
             exception = e;
         }
