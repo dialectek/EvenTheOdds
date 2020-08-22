@@ -4,6 +4,7 @@ package com.dialectek.even_the_odds.rest;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @Path("/service")
 public class EvenTheOdds
@@ -62,41 +65,42 @@ public class EvenTheOdds
    @GET
    @Path("/get_case/{case_name}")
    @Produces(MediaType.APPLICATION_OCTET_STREAM)
-   public Response get_case(@PathParam ("case_name") String caseName) throws Exception
+   public Response get_case(@PathParam ("case_name") String caseName) throws WebApplicationException 
    {
 	   synchronized (lock)
 	   {
 	       String caseFileName = evenApp.getCaseFileName(caseName);
 	       File caseFile = new File(caseFileName);
-		   if (!caseFile.exists()) 
-		   {
-		      throw new WebApplicationException(404);
-		   }	
-	       StreamingOutput fileStream =  new StreamingOutput() 
-	       {
-	           @Override
-	           public void write(java.io.OutputStream output) throws IOException, WebApplicationException 
-	           {
-	               try
-	               {
-	                   java.nio.file.Path path = Paths.get(caseFileName);
-	                   byte[] data = Files.readAllBytes(path);	                   
-	                   output.write(data);
-	                   output.flush();
-	               } 
-	               catch (Exception e) 
-	               {
-	                   throw new WebApplicationException(404);
-	               }
-	           }
-	       };
-	       return Response
-	               .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
-	               .header("content-disposition","attachment; filename=" + new File(caseFileName).getName())
-	               .build();
+		   if (caseFile.exists()) 
+		   {	
+		       StreamingOutput fileStream =  new StreamingOutput() 
+		       {
+		           @Override
+		           public void write(java.io.OutputStream output) throws IOException, WebApplicationException 
+		           {
+		               try
+		               {
+		                   java.nio.file.Path path = Paths.get(caseFileName);
+		                   byte[] data = Files.readAllBytes(path);
+		                   output.write(data);
+		                   output.flush();
+		               } 
+		               catch (Exception e) 
+		               {
+		                   throw new WebApplicationException(400);
+		               }
+		           }
+		       };
+		       return Response
+		               .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+		               .header("content-disposition","attachment; filename=" + new File(caseFileName).getName())
+		               .build();
+		   } else {
+			  return(Response.status(404).build()); 
+		   }		   
 	   }
    }
-
+   
    // Get case file.
    @GET
    @Path("/get_case_file/{case_name}")
@@ -107,29 +111,39 @@ public class EvenTheOdds
       {
 	      String caseFileName = evenApp.getCaseFileName(caseName);
     	  File caseFile = new File(caseFileName);
-		  if (!caseFile.exists()) 
+		  if (caseFile.exists()) 
 		  {
-		      throw new WebApplicationException(404);
-		  }	
-		  return Response.ok(caseFile).header("Content-Disposition",
-		      "attachment; filename=" + new File(caseFileName).getName()).build();
+			  return Response.ok(caseFile).header("Content-Disposition",
+				      "attachment; filename=" + new File(caseFileName).getName()).build();
+		  } else {
+			  return(Response.status(404).build());
+		  }
       }
    }
    
    @POST   
-   @Path("/new_case/{case_name}")
+   @Path("/new_case")
    @Consumes(MediaType.MULTIPART_FORM_DATA)
-   @Produces(MediaType.TEXT_PLAIN)
-   public Response new_case(File uploadFile, @PathParam ("case_name") String caseName)
+   @Produces(MediaType.TEXT_PLAIN)   
+   public Response new_case(MultipartFormDataInput input) throws WebApplicationException
    {
-      synchronized (lock)
-      {
-    	  if (evenApp.newCase(uploadFile, caseName))
-    	  {
-			  return(Response.status(200).build());
-		  } else { 
-			  return(Response.status(400).build());
-		  }
-      }
-   }   
+       try
+       {
+           String caseName = input.getFormDataPart("case_name", String.class, null);
+           InputStream fileStream = input.getFormDataPart("file_name", InputStream.class, null);
+	       synchronized (lock)
+	       {
+	     	  if (evenApp.newCase(fileStream, caseName))
+	     	  {
+	 			  return(Response.status(200).build());
+	 		  } else { 
+	 			  return(Response.status(400).build());
+	 		  }
+	       }
+       } 
+       catch (Exception e) 
+       {
+           throw new WebApplicationException(400);
+       }       
+   }
 }

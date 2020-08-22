@@ -38,7 +38,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
@@ -447,7 +450,7 @@ public class JusticeFragment extends Fragment {
                     }
 
                     @Override
-                    public void onSelect(String selectedDir) {
+                    public void onSelect(final String selectedDir) {
                         mSelectedFileName = selectedDir;
                         new Thread(new Runnable() {
                             Handler handler = new Handler(Looper.getMainLooper());
@@ -459,7 +462,27 @@ public class JusticeFragment extends Fragment {
                                 File zipFile = new File(zipFileName);
                                 if (downloadCase(caseName, zipFile))
                                 {
-
+                                    if (unzip(zipFileName, selectedDir)) {
+                                        handler.post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Toast toast = Toast.makeText(m_context, "Case name '"
+                                                        + caseName + "' downloaded", Toast.LENGTH_LONG);
+                                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                                toast.show();
+                                            }
+                                        });
+                                    } else {
+                                        handler.post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Toast toast = Toast.makeText(m_context, "Cannot download case name '"
+                                                        + caseName, Toast.LENGTH_LONG);
+                                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                                toast.show();
+                                            }
+                                        });
+                                    }
                                 }
                             }
                         }).start();
@@ -483,7 +506,7 @@ public class JusticeFragment extends Fragment {
         String charset = "UTF-8";
         boolean result = false;
 
-        String s = mServer + "/EvenTheOdds/rest/service/get_case/" + caseName;
+        String s = mServer + "/EvenTheOdds/rest/service/get_case_file/" + caseName;
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
@@ -495,13 +518,16 @@ public class JusticeFragment extends Fragment {
             http = new HTTPget(URLname);
             final int status = http.get();
             if (status == HttpURLConnection.HTTP_OK) {
-                InputStream inputStream = http.httpConn.getInputStream();
-                byte[] buffer = new byte[inputStream.available()];
-                inputStream.read(buffer);
-                OutputStream outputStream = new FileOutputStream(downloadZip);
-                outputStream.write(buffer);
-                inputStream.close();
-                outputStream.close();
+                String disposition = http.httpConn.getHeaderField("Content-Disposition");  // flibber
+                String contentType = http.httpConn.getContentType();
+                int contentLength = http.httpConn.getContentLength();
+                Reader reader = new InputStreamReader(http.httpConn.getInputStream());
+                Writer writer = new OutputStreamWriter(new FileOutputStream(downloadZip));
+                for (int ch = reader.read(); ch != -1; ch = reader.read()) {
+                    writer.write(ch);
+                }
+                writer.close();
+                reader.close();
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -549,15 +575,17 @@ public class JusticeFragment extends Fragment {
     }
 
     // Unzip to target directory.
-    public boolean unzip(String zipFile, String targetDir) {
+    public boolean unzip(String zipFileName, String targetDirName) {
+        File zipFile = new File(zipFileName); // flibber
+        long l = zipFile.length(); // flibber
         ZipInputStream zin = null;
         try {
-            FileInputStream fin = new FileInputStream(zipFile);
+            FileInputStream fin = new FileInputStream(zipFileName);
             zin = new ZipInputStream(fin);
             ZipEntry ze = null;
             while ((ze = zin.getNextEntry()) != null) {
                 if (ze.isDirectory()) {
-                    File d = new File(targetDir + ze.getName());
+                    File d = new File(targetDirName + "/" + ze.getName());
                     if (d.exists()) {
                         if (d.isDirectory()) {
                             zin.close();
@@ -570,7 +598,7 @@ public class JusticeFragment extends Fragment {
                         }
                     }
                 } else {
-                    FileOutputStream fout = new FileOutputStream(targetDir + ze.getName());
+                    FileOutputStream fout = new FileOutputStream(targetDirName + "/" + ze.getName());
                     for (int c = zin.read(); c != -1; c = zin.read()) {
                         fout.write(c);
                     }
@@ -591,14 +619,14 @@ public class JusticeFragment extends Fragment {
     }
 
     // Unzip to data stream.
-    private boolean unzip(DataInputStream zipInputStream, String targetDir) {
+    private boolean unzip(DataInputStream zipInputStream, String targetDirName) {
         ZipInputStream zin = null;
         try {
             zin = new ZipInputStream(zipInputStream);
             ZipEntry ze = null;
             while ((ze = zin.getNextEntry()) != null) {
                 if (ze.isDirectory()) {
-                    File d = new File(targetDir + ze.getName());
+                    File d = new File(targetDirName + ze.getName());
                     if (d.exists()) {
                         if (d.isDirectory()) {
                             return false;
@@ -609,7 +637,7 @@ public class JusticeFragment extends Fragment {
                         }
                     }
                 } else {
-                    FileOutputStream fout = new FileOutputStream(targetDir + ze.getName());
+                    FileOutputStream fout = new FileOutputStream(targetDirName + ze.getName());
                     for (int c = zin.read(); c != -1; c = zin.read()) {
                         fout.write(c);
                     }
@@ -643,6 +671,18 @@ public class JusticeFragment extends Fragment {
                                 String zipFileName = m_tmpDirectory + "/" + caseName + ".zip";
                                 if (zip(mSelectedFileName, zipFileName)) {
                                     File zipFile = new File(zipFileName);
+                                    long l = zipFile.length(); // flibber
+                                    String targetDirName2 = m_dataDirectory + "/yyy";  // flibber
+                                    File targetDir2 = new File(targetDirName2);
+                                    if (!targetDir2.exists())
+                                    {
+                                        targetDir2.mkdir();
+                                    }
+                                    unzip(zipFileName,targetDirName2); // flibber
+                                    File[] files = targetDir2.listFiles();
+                                    int n = files.length;
+                                    String[] names = targetDir2.list();
+                                    int n2 = names.length;
                                     if (uploadCase(caseName, zipFile)) {
                                         handler.post(new Runnable() {
                                             @Override

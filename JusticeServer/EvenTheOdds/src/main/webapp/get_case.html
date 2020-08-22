@@ -1,0 +1,17 @@
+<html>
+<body>
+<h1>Even (the odds) get case</h1>
+<script type="text/javascript">
+function get_case() {
+    var action_src = "http://192.168.1.135:8080/EvenTheOdds/rest/service/get_case/" + document.getElementsByName("case_name")[0].value;
+    var get_case_form = document.getElementById('get_case_form');
+    get_case_form.action = action_src;
+}
+</script>
+<form id="get_case_form" onsubmit="get_case()">
+<p>Case name: <input type="text" name="case_name" /></p>
+<input type="submit" value="Submit" />
+</form>
+</body>
+</html>
+
