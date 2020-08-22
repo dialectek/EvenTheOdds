@@ -506,7 +506,7 @@ public class JusticeFragment extends Fragment {
         String charset = "UTF-8";
         boolean result = false;
 
-        String s = mServer + "/EvenTheOdds/rest/service/get_case_file/" + caseName;
+        String s = mServer + "/EvenTheOdds/rest/service/get_case/" + caseName;
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
@@ -827,7 +827,7 @@ public class JusticeFragment extends Fragment {
         String charset = "UTF-8";
         boolean result = false;
 
-        String s = mServer + "/EvenTheOdds/rest/service/new_case/" + caseName;
+        String s = mServer + "/EvenTheOdds/rest/service/new_case";
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
@@ -837,6 +837,7 @@ public class JusticeFragment extends Fragment {
         HTTPpost http = null;
         try {
             http = new HTTPpost(URLname, charset, false);
+            http.addFormField("case_name", caseName);
             http.addFilePart("file_name", uploadZip);
             final int status = http.post();
             if (status == HttpURLConnection.HTTP_OK) {
