@@ -25,48 +25,39 @@ public class EvenTheOdds
 	   }
    }
 
-   // Get cases.
-   public synchronized ArrayList<String> getCases()
+   // Get file names.
+   public synchronized ArrayList<String> getFileNames()
    {
  	  File dir = new File(appDirectory);
  	  File[] filesList = dir.listFiles();
- 	  ArrayList<String> caseNames = new ArrayList<String>();
+ 	  ArrayList<String> fileNames = new ArrayList<String>();
  	  for (File file : filesList) 
  	  {
- 	     if (file.isFile()) {
- 	    	 String fileName = file.getName();
- 	    	 int i = fileName.lastIndexOf('.');
- 	    	 if (i > 0) {
- 	    	     String extension = fileName.substring(i+1);
- 	    	     String base = fileName.substring(0, i);
- 	    	     if (extension.equals("zip"))
- 	    	     {
- 	    	    	 caseNames.add(base);
- 	    	     }
- 	    	 }    	    	 
-
+ 	     if (file.isFile()) 
+ 	     {
+ 	    	 fileNames.add(file.getName()); 
  	     }
  	  }	  
-      return(caseNames);
+      return(fileNames);
    }
    
-   // Get case file name.
-   public synchronized String getCaseFileName(String caseName)
+   // Get file path name.
+   public synchronized String getPathName(String fileName)
    {
-	  return appDirectory + "/" + caseName + ".zip";
+	  return appDirectory + "/" + fileName;
    }
    
    // New case.
-   public synchronized boolean newCase(InputStream fileStream, String caseName)
+   public synchronized boolean putFile(String fileName, InputStream fileStream)
    {   
-	  String caseFileName = getCaseFileName(caseName); 	  
-	  File caseFile = new File(caseFileName);  
-	  if (fileStream != null && !caseFile.exists())
+	  String pathName = getPathName(fileName); 	  
+	  File file = new File(pathName);  
+	  if (fileStream != null)
 	  {
 		  try 
 		  {
 	          Reader reader = new InputStreamReader(fileStream);
-	          Writer writer = new OutputStreamWriter(new FileOutputStream(caseFile));
+	          Writer writer = new OutputStreamWriter(new FileOutputStream(file));
 	          for (int ch = reader.read(); ch != -1; ch = reader.read()) 
 	          {
 	              writer.write(ch);

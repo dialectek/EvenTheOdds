@@ -301,7 +301,7 @@ public class JusticeFragment extends Fragment {
                 m_selectCaseButton.setEnabled(false);
                 m_newCaseButton.setEnabled(false);
                 mServer = m_serverSpinner.getSelectedItem().toString();
-                String s = mServer + "/EvenTheOdds/rest/service/get_cases";
+                String s = mServer + "/EvenTheOdds/rest/service/get_files";
                 if (!s.startsWith("http"))
                 {
                     s = "http://" + s;
@@ -340,6 +340,10 @@ public class JusticeFragment extends Fragment {
                                             cases = cases[1].split("\\]");
                                             cases = cases[0].split(",");
                                             for (String caseName : cases) {
+                                                int i = caseName.lastIndexOf('.');
+                                                if (i > 0) {
+                                                    caseName = caseName.substring(0, i);
+                                                }
                                                 CharSequence textHolder = caseName.trim();
                                                 m_adapterForCaseSpinner.add(textHolder);
                                             }
@@ -483,6 +487,7 @@ public class JusticeFragment extends Fragment {
                                             }
                                         });
                                     }
+                                    zipFile.delete();
                                 }
                             }
                         }).start();
@@ -506,7 +511,7 @@ public class JusticeFragment extends Fragment {
         String charset = "UTF-8";
         boolean result = false;
 
-        String s = mServer + "/EvenTheOdds/rest/service/get_case/" + caseName;
+        String s = mServer + "/EvenTheOdds/rest/service/get_file/" + caseName + ".zip";
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
@@ -518,16 +523,12 @@ public class JusticeFragment extends Fragment {
             http = new HTTPget(URLname);
             final int status = http.get();
             if (status == HttpURLConnection.HTTP_OK) {
-                String disposition = http.httpConn.getHeaderField("Content-Disposition");  // flibber
-                String contentType = http.httpConn.getContentType();
-                int contentLength = http.httpConn.getContentLength();
                 Reader reader = new InputStreamReader(http.httpConn.getInputStream());
                 Writer writer = new OutputStreamWriter(new FileOutputStream(downloadZip));
                 for (int ch = reader.read(); ch != -1; ch = reader.read()) {
                     writer.write(ch);
                 }
                 writer.close();
-                reader.close();
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -576,8 +577,6 @@ public class JusticeFragment extends Fragment {
 
     // Unzip to target directory.
     public boolean unzip(String zipFileName, String targetDirName) {
-        File zipFile = new File(zipFileName); // flibber
-        long l = zipFile.length(); // flibber
         ZipInputStream zin = null;
         try {
             FileInputStream fin = new FileInputStream(zipFileName);
@@ -617,40 +616,7 @@ public class JusticeFragment extends Fragment {
         }
         return true;
     }
-
-    // Unzip to data stream.
-    private boolean unzip(DataInputStream zipInputStream, String targetDirName) {
-        ZipInputStream zin = null;
-        try {
-            zin = new ZipInputStream(zipInputStream);
-            ZipEntry ze = null;
-            while ((ze = zin.getNextEntry()) != null) {
-                if (ze.isDirectory()) {
-                    File d = new File(targetDirName + ze.getName());
-                    if (d.exists()) {
-                        if (d.isDirectory()) {
-                            return false;
-                        }
-                    } else {
-                        if (!d.mkdir()) {
-                            return false;
-                        }
-                    }
-                } else {
-                    FileOutputStream fout = new FileOutputStream(targetDirName + ze.getName());
-                    for (int c = zin.read(); c != -1; c = zin.read()) {
-                        fout.write(c);
-                    }
-                    zin.closeEntry();
-                    fout.close();
-                }
-            }
-        } catch (Exception e) {
-            return false;
-        }
-        return true;
-    }
-
+    
     // New case.
     private void newCase(final String caseName) {
         FileManager caseAdder = new FileManager(m_context, m_dataDirectory, FileManager.NEW_CASE,
@@ -671,18 +637,6 @@ public class JusticeFragment extends Fragment {
                                 String zipFileName = m_tmpDirectory + "/" + caseName + ".zip";
                                 if (zip(mSelectedFileName, zipFileName)) {
                                     File zipFile = new File(zipFileName);
-                                    long l = zipFile.length(); // flibber
-                                    String targetDirName2 = m_dataDirectory + "/yyy";  // flibber
-                                    File targetDir2 = new File(targetDirName2);
-                                    if (!targetDir2.exists())
-                                    {
-                                        targetDir2.mkdir();
-                                    }
-                                    unzip(zipFileName,targetDirName2); // flibber
-                                    File[] files = targetDir2.listFiles();
-                                    int n = files.length;
-                                    String[] names = targetDir2.list();
-                                    int n2 = names.length;
                                     if (uploadCase(caseName, zipFile)) {
                                         handler.post(new Runnable() {
                                             @Override
@@ -777,34 +731,6 @@ public class JusticeFragment extends Fragment {
         return true;
     }
 
-    // Zip directory to data stream.
-    private boolean zip(String sourceDirName, DataOutputStream zipOutputStream) {
-        File sourceDir = new File(sourceDirName);
-        List<File> fileList = getSubFiles(sourceDir);
-        ZipOutputStream zout = null;
-        try {
-            zout = new ZipOutputStream(zipOutputStream);
-            int bufferSize = 1024;
-            byte[] buf = new byte[bufferSize];
-            ZipEntry zipEntry;
-            for(int i = 0; i < fileList.size(); i++) {
-                File file = fileList.get(i);
-                zipEntry = new ZipEntry(sourceDir.toURI().relativize(file.toURI()).getPath());
-                zout.putNextEntry(zipEntry);
-                if (!file.isDirectory()) {
-                    InputStream inputStream = new BufferedInputStream(new FileInputStream(file));
-                    int readLength;
-                    while ((readLength = inputStream.read(buf, 0, bufferSize)) != -1) {
-                        zipOutputStream.write(buf, 0, readLength);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            return false;
-        }
-        return true;
-    }
-
     public static List<File> getSubFiles(File baseDir) {
         List<File> fileList = new ArrayList<File>();
         if (baseDir.isFile()) {
@@ -827,7 +753,7 @@ public class JusticeFragment extends Fragment {
         String charset = "UTF-8";
         boolean result = false;
 
-        String s = mServer + "/EvenTheOdds/rest/service/new_case";
+        String s = mServer + "/EvenTheOdds/rest/service/put_file";
         if (!s.startsWith("http"))
         {
             s = "http://" + s;
@@ -837,7 +763,6 @@ public class JusticeFragment extends Fragment {
         HTTPpost http = null;
         try {
             http = new HTTPpost(URLname, charset, false);
-            http.addFormField("case_name", caseName);
             http.addFilePart("file_name", uploadZip);
             final int status = http.post();
             if (status == HttpURLConnection.HTTP_OK) {

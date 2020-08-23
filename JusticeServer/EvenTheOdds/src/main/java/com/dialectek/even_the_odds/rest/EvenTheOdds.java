@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -17,9 +19,11 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @Path("/service")
@@ -38,19 +42,19 @@ public class EvenTheOdds
       lock = new Object();
    }
 
-   // Get cases.
+   // Get files.
    @GET
-   @Path("/get_cases")
+   @Path("/get_files")
    @Produces(MediaType.TEXT_PLAIN)
-   public Response get_cases()
+   public Response get_files()
    {
       synchronized (lock)
       {
     	 String output = "[";
-    	 ArrayList<String> caseNames = evenApp.getCases();
-    	 for (int i = 0, j = caseNames.size(); i < j; i++) 
+    	 ArrayList<String> fileNames = evenApp.getFileNames();
+    	 for (int i = 0, j = fileNames.size(); i < j; i++) 
     	 {
-	         output += caseNames.get(i);
+	         output += fileNames.get(i);
 	         if (i < j - 1)
 	         {
     			 output += ",";    	        	 
@@ -61,17 +65,17 @@ public class EvenTheOdds
       }
    }
    
-   // Get case.
+   // Get file.
    @GET
-   @Path("/get_case/{case_name}")
+   @Path("/get_file/{file_name}")
    @Produces(MediaType.APPLICATION_OCTET_STREAM)
-   public Response get_case(@PathParam ("case_name") String caseName) throws WebApplicationException 
+   public Response get_file(@PathParam ("file_name") String fileName) throws WebApplicationException 
    {
 	   synchronized (lock)
 	   {
-	       String caseFileName = evenApp.getCaseFileName(caseName);
-	       File caseFile = new File(caseFileName);
-		   if (caseFile.exists()) 
+	       String pathName = evenApp.getPathName(fileName);
+	       File file = new File(pathName);
+		   if (file.exists()) 
 		   {	
 		       StreamingOutput fileStream =  new StreamingOutput() 
 		       {
@@ -80,7 +84,7 @@ public class EvenTheOdds
 		           {
 		               try
 		               {
-		                   java.nio.file.Path path = Paths.get(caseFileName);
+		                   java.nio.file.Path path = Paths.get(pathName);
 		                   byte[] data = Files.readAllBytes(path);
 		                   output.write(data);
 		                   output.flush();
@@ -93,7 +97,7 @@ public class EvenTheOdds
 		       };
 		       return Response
 		               .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
-		               .header("content-disposition","attachment; filename=" + new File(caseFileName).getName())
+		               .header("content-disposition","attachment; filename=" + fileName)
 		               .build();
 		   } else {
 			  return(Response.status(404).build()); 
@@ -101,49 +105,50 @@ public class EvenTheOdds
 	   }
    }
    
-   // Get case file.
-   @GET
-   @Path("/get_case_file/{case_name}")
-   @Produces("application/zip")
-   public Response get_case_file(@PathParam ("case_name") String caseName) throws Exception
-   {
-      synchronized (lock)
-      {
-	      String caseFileName = evenApp.getCaseFileName(caseName);
-    	  File caseFile = new File(caseFileName);
-		  if (caseFile.exists()) 
-		  {
-			  return Response.ok(caseFile).header("Content-Disposition",
-				      "attachment; filename=" + new File(caseFileName).getName()).build();
-		  } else {
-			  return(Response.status(404).build());
-		  }
-      }
-   }
-   
    @POST   
-   @Path("/new_case")
+   @Path("/put_file")
    @Consumes(MediaType.MULTIPART_FORM_DATA)
    @Produces(MediaType.TEXT_PLAIN)   
-   public Response new_case(MultipartFormDataInput input) throws WebApplicationException
+   public Response put_file(MultipartFormDataInput input) throws WebApplicationException
    {
-       try
-       {
-           String caseName = input.getFormDataPart("case_name", String.class, null);
-           InputStream fileStream = input.getFormDataPart("file_name", InputStream.class, null);
-	       synchronized (lock)
-	       {
-	     	  if (evenApp.newCase(fileStream, caseName))
-	     	  {
-	 			  return(Response.status(200).build());
-	 		  } else { 
-	 			  return(Response.status(400).build());
-	 		  }
-	       }
-       } 
-       catch (Exception e) 
-       {
-           throw new WebApplicationException(400);
-       }       
+       synchronized (lock)
+       {	   
+		   String fileName = null;
+		   Map<String, List<InputPart>> formParts = input.getFormDataMap();
+		   List<InputPart> inPart = formParts.get("file_name"); 
+		   for (InputPart inputPart : inPart) 
+		   {
+		       MultivaluedMap<String, String> headers = inputPart.getHeaders();
+		       String[] contentDispositionHeader = headers.getFirst("Content-Disposition").split(";");
+		       for (String name : contentDispositionHeader) 
+		       {
+		         if ((name.trim().startsWith("filename"))) 
+		         {
+		           String[] tmp = name.split("=");
+		           fileName = tmp[1].trim().replaceAll("\"","");
+		           break;
+		         }
+		       }
+		   }
+		   if (fileName != null)
+		   {
+		       try
+		       {
+		          InputStream fileStream = input.getFormDataPart("file_name", InputStream.class, null);	
+		     	  if (evenApp.putFile(fileName, fileStream))
+		     	  {
+		 			  return(Response.status(200).build());
+		 		  } else { 
+		 			  return(Response.status(400).build());
+		 		  }
+		       } 
+		       catch (Exception e) 
+		       {
+		           throw new WebApplicationException(400);
+		       } 
+		   } else {
+	           throw new WebApplicationException(400);		   
+		   }
+   		}
    }
 }
