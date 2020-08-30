@@ -10,6 +10,7 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Base64;
 
 public class EvenTheOdds
 {
@@ -57,13 +58,18 @@ public class EvenTheOdds
 		  try 
 		  {
 	          Reader reader = new InputStreamReader(fileStream);
-	          Writer writer = new OutputStreamWriter(new FileOutputStream(file));
-	          for (int ch = reader.read(); ch != -1; ch = reader.read()) 
-	          {
-	              writer.write(ch);
-	          }
-	          writer.flush();
-	          writer.close();
+              ArrayList<Byte> zipByteList = new ArrayList<Byte>();
+              for (int ch = reader.read(); ch != -1; ch = reader.read()) {
+                 zipByteList.add((byte)ch);
+              }
+              byte[] zipBytes = new byte[zipByteList.size()];
+              for (int i = 0, j = zipBytes.length; i < j; i++) {
+                 zipBytes[i] = zipByteList.get(i);
+              }
+              byte[] zipBytesDecoded = Base64.getDecoder().decode(zipBytes);
+              FileOutputStream outputStream = new FileOutputStream(file);
+              outputStream.write(zipBytesDecoded);
+              outputStream.close();	          
 		  } catch (Exception e)
 		  {
 			  return false;

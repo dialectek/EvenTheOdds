@@ -5,9 +5,12 @@ package com.dialectek.even_the_odds.rest;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -80,14 +83,16 @@ public class EvenTheOdds
 		       StreamingOutput fileStream =  new StreamingOutput() 
 		       {
 		           @Override
-		           public void write(java.io.OutputStream output) throws IOException, WebApplicationException 
+		           public void write(OutputStream outputStream) throws IOException, WebApplicationException 
 		           {
 		               try
 		               {
 		                   java.nio.file.Path path = Paths.get(pathName);
 		                   byte[] data = Files.readAllBytes(path);
-		                   output.write(data);
-		                   output.flush();
+		                   String dataString = Base64.getEncoder().encodeToString(data);
+		                   try (PrintWriter writer = new PrintWriter(outputStream)) {
+		                       writer.print(dataString);
+		                   }		                   
 		               } 
 		               catch (Exception e) 
 		               {
