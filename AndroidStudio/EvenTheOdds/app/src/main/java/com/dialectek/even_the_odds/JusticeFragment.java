@@ -27,8 +27,6 @@ import androidx.annotation.RequiresApi;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -37,13 +35,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.io.Writer;
 import java.net.HttpURLConnection;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -458,7 +455,8 @@ public class JusticeFragment extends Fragment {
                         mSelectedFileName = selectedDir;
                         new Thread(new Runnable() {
                             Handler handler = new Handler(Looper.getMainLooper());
-                            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+
+                            @RequiresApi(api = Build.VERSION_CODES.O)
                             @Override
                             public void run() {
                                 // Download case and unzip to selected directory.
@@ -506,7 +504,7 @@ public class JusticeFragment extends Fragment {
     }
 
     // Download case.
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private boolean downloadCase(final String caseName, final File downloadZip) {
         String charset = "UTF-8";
         boolean result = false;
@@ -524,11 +522,18 @@ public class JusticeFragment extends Fragment {
             final int status = http.get();
             if (status == HttpURLConnection.HTTP_OK) {
                 Reader reader = new InputStreamReader(http.httpConn.getInputStream());
-                Writer writer = new OutputStreamWriter(new FileOutputStream(downloadZip));
+                ArrayList<Byte> zipByteList = new ArrayList<Byte>();
                 for (int ch = reader.read(); ch != -1; ch = reader.read()) {
-                    writer.write(ch);
+                   zipByteList.add((byte)ch);
                 }
-                writer.close();
+                byte[] zipBytes = new byte[zipByteList.size()];
+                for (int i = 0, j = zipBytes.length; i < j; i++) {
+                   zipBytes[i] = zipByteList.get(i);
+                }
+                byte[] zipBytesDecoded = Base64.getDecoder().decode(zipBytes);
+                FileOutputStream outputStream = new FileOutputStream(downloadZip);
+                outputStream.write(zipBytesDecoded);
+                outputStream.close();
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -625,12 +630,13 @@ public class JusticeFragment extends Fragment {
                     public void onSave(String savedFile) {
                     }
 
-                    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
                     @Override
                     public void onSelect(String selectedFile) {
                         mSelectedFileName = selectedFile;
                         new Thread(new Runnable() {
                             Handler handler = new Handler(Looper.getMainLooper());
+
+                            @RequiresApi(api = Build.VERSION_CODES.O)
                             @Override
                             public void run() {
                                 // Zip case and upload.
@@ -696,8 +702,14 @@ public class JusticeFragment extends Fragment {
 
     // Zip directory to file.
     private boolean zip(String sourceDirName, String zipFileName) {
+        List<File> fileList = new ArrayList<File>();
         File sourceDir = new File(sourceDirName);
-        List<File> fileList = getSubFiles(sourceDir);
+        if (sourceDir.isDirectory()) {
+            fileList = getSubFiles(sourceDir);
+        } else {
+            fileList.add(sourceDir);
+            sourceDir = sourceDir.getParentFile();
+        }
         ZipOutputStream zout = null;
         try {
             File zipFile = new File(zipFileName);
@@ -733,22 +745,18 @@ public class JusticeFragment extends Fragment {
 
     public static List<File> getSubFiles(File baseDir) {
         List<File> fileList = new ArrayList<File>();
-        if (baseDir.isFile()) {
-          fileList.add(baseDir);
-        } else {
-            File[] tmpList = baseDir.listFiles();
-            for (File file : tmpList) {
-                fileList.add(file);
-                if (file.isDirectory()) {
-                    fileList.addAll(getSubFiles(file));
-                }
+        File[] tmpList = baseDir.listFiles();
+        for (File file : tmpList) {
+            fileList.add(file);
+            if (file.isDirectory()) {
+                fileList.addAll(getSubFiles(file));
             }
         }
         return fileList;
     }
 
-    // Upload case.
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    // Upload case
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private boolean uploadCase(final String caseName, final File uploadZip) {
         String charset = "UTF-8";
         boolean result = false;
@@ -762,6 +770,13 @@ public class JusticeFragment extends Fragment {
         Handler handler = new Handler(Looper.getMainLooper());
         HTTPpost http = null;
         try {
+            // Encode to Base64 string.
+            byte[] zipFileContent = Files.readAllBytes(uploadZip.toPath());
+            String zipString = Base64.getEncoder().encodeToString(zipFileContent);
+            try (PrintWriter out = new PrintWriter(uploadZip)) {
+                out.print(zipString);
+            }
+
             http = new HTTPpost(URLname, charset, false);
             http.addFilePart("file_name", uploadZip);
             final int status = http.post();
