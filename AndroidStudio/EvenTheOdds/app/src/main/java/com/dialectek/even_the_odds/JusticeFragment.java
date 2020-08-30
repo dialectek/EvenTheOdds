@@ -60,8 +60,9 @@ public class JusticeFragment extends Fragment {
     private ArrayAdapter m_adapterForCaseSpinner;
     private String case_uninitialized_hint = "<connect to server>";
     private String case_empty_hint = "<new case>";
-    private Button m_selectCaseButton;
     private Button m_newCaseButton;
+    private Button m_testimonyButton;
+    private Button m_courtroomButton;
     private String mSelectedFileName;
 
     @Override
@@ -205,24 +206,13 @@ public class JusticeFragment extends Fragment {
         m_caseSpinner.setAdapter(m_adapterForCaseSpinner);
         CharSequence textHolder = case_uninitialized_hint;
         m_adapterForCaseSpinner.add(textHolder);
-        m_selectCaseButton = (Button)m_view.findViewById(R.id.select_case_button);
-        m_selectCaseButton.setEnabled(false);
         m_newCaseButton = (Button)m_view.findViewById(R.id.new_case_button);
         m_newCaseButton.setEnabled(false);
+        m_testimonyButton = (Button)m_view.findViewById(R.id.testimony_button);
+        m_testimonyButton.setEnabled(false);
+        m_courtroomButton = (Button)m_view.findViewById(R.id.courtroom_button);
+        m_courtroomButton.setEnabled(false);
 
-        m_selectCaseButton.setOnClickListener(new View.OnClickListener()
-        {
-
-            @Override
-            public void onClick(View v) {
-                if (m_caseSpinner.getCount() > 0) {
-                    String caseName = m_caseSpinner.getSelectedItem().toString();
-                    if (!caseName.equals(case_empty_hint)) {
-                        selectCase(caseName);
-                    }
-                }
-            }
-        });
         m_newCaseButton.setOnClickListener(new View.OnClickListener()
                                      {
                                          @Override
@@ -285,6 +275,20 @@ public class JusticeFragment extends Fragment {
                                          }
                                      }
         );
+
+        m_testimonyButton.setOnClickListener(new View.OnClickListener()
+        {
+
+            @Override
+            public void onClick(View v) {
+                if (m_caseSpinner.getCount() > 0) {
+                    String caseName = m_caseSpinner.getSelectedItem().toString();
+                    if (!caseName.equals(case_empty_hint)) {
+                        getTestimony(caseName);
+                    }
+                }
+            }
+        });
     }
 
     // Get cases from server.
@@ -295,10 +299,11 @@ public class JusticeFragment extends Fragment {
                 m_adapterForCaseSpinner = new ArrayAdapter(m_view.getContext(), android.R.layout.simple_spinner_item);
                 m_adapterForCaseSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 m_caseSpinner.setAdapter(m_adapterForCaseSpinner);
-                m_selectCaseButton.setEnabled(false);
                 m_newCaseButton.setEnabled(false);
+                m_testimonyButton.setEnabled(false);
+                m_courtroomButton.setEnabled(false);
                 mServer = m_serverSpinner.getSelectedItem().toString();
-                String s = mServer + "/EvenTheOdds/rest/service/get_files";
+                String s = mServer + "/EvenTheOdds/rest/service/get_dirs";
                 if (!s.startsWith("http"))
                 {
                     s = "http://" + s;
@@ -331,20 +336,18 @@ public class JusticeFragment extends Fragment {
                                             toast.show();
                                             CharSequence textHolder = case_empty_hint;
                                             m_adapterForCaseSpinner.add(textHolder);
-                                            m_selectCaseButton.setEnabled(false);
+                                            m_testimonyButton.setEnabled(false);
+                                            m_courtroomButton.setEnabled(false);
                                         } else {
                                             String[] cases = response.split("\\[");
                                             cases = cases[1].split("\\]");
                                             cases = cases[0].split(",");
                                             for (String caseName : cases) {
-                                                int i = caseName.lastIndexOf('.');
-                                                if (i > 0) {
-                                                    caseName = caseName.substring(0, i);
-                                                }
                                                 CharSequence textHolder = caseName.trim();
                                                 m_adapterForCaseSpinner.add(textHolder);
                                             }
-                                            m_selectCaseButton.setEnabled(true);
+                                            m_testimonyButton.setEnabled(true);
+                                            m_courtroomButton.setEnabled(true);
                                         }
                                         m_newCaseButton.setEnabled(true);
                                     }
@@ -442,8 +445,8 @@ public class JusticeFragment extends Fragment {
         }
     }
 
-    // Select case.
-    private void selectCase(final String caseName) {
+    // Get case testimony.
+    private void getTestimony(final String caseName) {
         FileManager caseSelector = new FileManager(m_context, m_dataDirectory, FileManager.SELECT_CASE,
                 new FileManager.Listener() {
                     @Override
@@ -462,13 +465,13 @@ public class JusticeFragment extends Fragment {
                                 // Download case and unzip to selected directory.
                                 String zipFileName = m_tmpDirectory + "/" + caseName + ".zip";
                                 File zipFile = new File(zipFileName);
-                                if (downloadCase(caseName, zipFile))
+                                if (downloadTestimony(caseName, zipFile))
                                 {
                                     if (unzip(zipFileName, selectedDir)) {
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
-                                                Toast toast = Toast.makeText(m_context, "Case name '"
+                                                Toast toast = Toast.makeText(m_context, "Testimony for case name '"
                                                         + caseName + "' downloaded", Toast.LENGTH_LONG);
                                                 toast.setGravity(Gravity.CENTER, 0, 0);
                                                 toast.show();
@@ -478,7 +481,7 @@ public class JusticeFragment extends Fragment {
                                         handler.post(new Runnable() {
                                             @Override
                                             public void run() {
-                                                Toast toast = Toast.makeText(m_context, "Cannot download case name '"
+                                                Toast toast = Toast.makeText(m_context, "Cannot download testimony for case name '"
                                                         + caseName, Toast.LENGTH_LONG);
                                                 toast.setGravity(Gravity.CENTER, 0, 0);
                                                 toast.show();
@@ -503,9 +506,9 @@ public class JusticeFragment extends Fragment {
         caseSelector.chooseFile_or_Dir();
     }
 
-    // Download case.
+    // Download testimony.
     @RequiresApi(api = Build.VERSION_CODES.O)
-    private boolean downloadCase(final String caseName, final File downloadZip) {
+    private boolean downloadTestimony(final String caseName, final File downloadZip) {
         String charset = "UTF-8";
         boolean result = false;
 
@@ -534,15 +537,6 @@ public class JusticeFragment extends Fragment {
                 FileOutputStream outputStream = new FileOutputStream(downloadZip);
                 outputStream.write(zipBytesDecoded);
                 outputStream.close();
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast toast = Toast.makeText(m_context, "Case " + caseName + " downloaded",
-                                Toast.LENGTH_LONG);
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                    }
-                });
                 result = true;
             } else {
                 handler.post(new Runnable() {
@@ -550,10 +544,10 @@ public class JusticeFragment extends Fragment {
                     public void run() {
                         Toast toast;
                         if (status == -1) {
-                            toast = Toast.makeText(m_context, "Cannot download case " + caseName,
+                            toast = Toast.makeText(m_context, "Cannot download testimony for case " + caseName,
                                     Toast.LENGTH_LONG);
                         } else {
-                            toast = Toast.makeText(m_context, "Cannot download case " + caseName + ": status="
+                            toast = Toast.makeText(m_context, "Cannot download testimony for case " + caseName + ": status="
                                     + status, Toast.LENGTH_LONG);
                         }
                         toast.setGravity(Gravity.CENTER, 0, 0);
@@ -566,7 +560,7 @@ public class JusticeFragment extends Fragment {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    Toast toast = Toast.makeText(m_context, "Cannot download case " + caseName + ": exception=" +
+                    Toast toast = Toast.makeText(m_context, "Cannot download testimony for case " + caseName + ": exception=" +
                             e.getMessage(), Toast.LENGTH_LONG);
                     toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();
@@ -650,7 +644,8 @@ public class JusticeFragment extends Fragment {
                                                 CharSequence textHolder = caseName;
                                                 m_adapterForCaseSpinner.add(textHolder);
                                                 m_caseSpinner.setSelection(m_caseSpinner.getCount() - 1);
-                                                m_selectCaseButton.setEnabled(true);
+                                                m_testimonyButton.setEnabled(true);
+                                                m_courtroomButton.setEnabled(true);
                                                 Toast toast = Toast.makeText(m_context, "Case name '"
                                                         + caseName + "' created", Toast.LENGTH_LONG);
                                                 toast.setGravity(Gravity.CENTER, 0, 0);

@@ -61,15 +61,20 @@
                 android:gravity="center"
                 android:orientation="horizontal">
                 <Button android:layout_height="wrap_content"
-                        android:id="@+id/select_case_button"
-                        android:layout_margin="4px"
-                        android:layout_width="wrap_content"
-                        android:text="Select"></Button>
-                <Button android:layout_height="wrap_content"
                         android:id="@+id/new_case_button"
                         android:layout_margin="4px"
                         android:layout_width="wrap_content"
                         android:text="New"></Button>
+                <Button android:layout_height="wrap_content"
+                        android:id="@+id/testimony_button"
+                        android:layout_margin="4px"
+                        android:layout_width="wrap_content"
+                        android:text="Testimony"></Button>
+                <Button android:layout_height="wrap_content"
+                        android:id="@+id/courtroom_button"
+                        android:layout_margin="4px"
+                        android:layout_width="wrap_content"
+                        android:text="Courtroom"></Button>
         </LinearLayout>
 
     </LinearLayout>

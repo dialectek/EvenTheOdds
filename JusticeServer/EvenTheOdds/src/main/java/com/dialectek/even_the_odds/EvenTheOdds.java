@@ -6,9 +6,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.io.Reader;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Base64;
 
@@ -26,32 +24,58 @@ public class EvenTheOdds
 	   }
    }
 
-   // Get file names.
-   public synchronized ArrayList<String> getFileNames()
+   // Get directory names.
+   public synchronized ArrayList<String> getDirNames()
    {
  	  File dir = new File(appDirectory);
  	  File[] filesList = dir.listFiles();
- 	  ArrayList<String> fileNames = new ArrayList<String>();
+ 	  ArrayList<String> dirNames = new ArrayList<String>();
  	  for (File file : filesList) 
  	  {
- 	     if (file.isFile()) 
+ 	     if (file.isDirectory()) 
  	     {
- 	    	 fileNames.add(file.getName()); 
+ 	    	 dirNames.add(file.getName()); 
  	     }
  	  }	  
-      return(fileNames);
+      return(dirNames);
    }
    
    // Get file path name.
    public synchronized String getPathName(String fileName)
    {
-	  return appDirectory + "/" + fileName;
+	  String[] tokens = fileName.split("\\.(?=[^\\.]+$)");
+	  if (tokens.length == 2)
+	  {
+		  return appDirectory + "/" + tokens[0] + "/" + fileName;
+	  } else {
+		  return appDirectory + "/" + fileName + "/" + fileName;		  
+	  }
    }
+   
+   // Make parent directory.
+   public synchronized boolean mkParentDir(String fileName)
+   {
+	  String[] tokens = fileName.split("\\.(?=[^\\.]+$)");
+	  File dir;
+	  if (tokens.length == 2)
+	  {
+		  dir = new File(appDirectory + "/" + tokens[0]);
+	  } else {
+		  dir = new File(appDirectory + "/" + fileName);		  
+	  }
+	  if (!dir.exists())
+	  {
+		  return dir.mkdir();
+	  } else {	  
+		  return true;
+	  }
+   } 
    
    // New case.
    public synchronized boolean putFile(String fileName, InputStream fileStream)
-   {   
-	  String pathName = getPathName(fileName); 	  
+   {
+	  mkParentDir(fileName);
+	  String pathName = getPathName(fileName);	  
 	  File file = new File(pathName);  
 	  if (fileStream != null)
 	  {

@@ -45,19 +45,19 @@ public class EvenTheOdds
       lock = new Object();
    }
 
-   // Get files.
+   // Get directories.
    @GET
-   @Path("/get_files")
+   @Path("/get_dirs")
    @Produces(MediaType.TEXT_PLAIN)
    public Response get_files()
    {
       synchronized (lock)
       {
     	 String output = "[";
-    	 ArrayList<String> fileNames = evenApp.getFileNames();
-    	 for (int i = 0, j = fileNames.size(); i < j; i++) 
+    	 ArrayList<String> dirNames = evenApp.getDirNames();
+    	 for (int i = 0, j = dirNames.size(); i < j; i++) 
     	 {
-	         output += fileNames.get(i);
+	         output += dirNames.get(i);
 	         if (i < j - 1)
 	         {
     			 output += ",";    	        	 
