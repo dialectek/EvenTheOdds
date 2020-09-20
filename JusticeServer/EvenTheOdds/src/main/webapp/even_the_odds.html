@@ -2,6 +2,18 @@
 <body>
 <h1>Even (the odds)</h1>
 <p>
+<h2>Get cases</h2>
+<script type="text/javascript">
+function get_cases() {
+    var action_src = "http://localhost:8080/EvenTheOdds/rest/service/get_cases";
+    var get_cases_form = document.getElementById('get_cases_form');
+    get_cases_form.action = action_src;
+}
+</script>
+<form id="get_cases_form" onsubmit="get_cases()">
+<input type="submit" value="Submit" />
+</form>
+<p>
 <h2>Get case file</h2>
 <script type="text/javascript">
 function get_case_file() {
