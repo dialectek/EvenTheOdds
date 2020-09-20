@@ -45,16 +45,16 @@ public class EvenTheOdds
       lock = new Object();
    }
 
-   // Get directories.
+   // Get cases.
    @GET
-   @Path("/get_dirs")
+   @Path("/get_cases")
    @Produces(MediaType.TEXT_PLAIN)
    public Response get_files()
    {
       synchronized (lock)
       {
     	 String output = "[";
-    	 ArrayList<String> dirNames = evenApp.getDirNames();
+    	 ArrayList<String> dirNames = evenApp.getCaseNames();
     	 for (int i = 0, j = dirNames.size(); i < j; i++) 
     	 {
 	         output += dirNames.get(i);
@@ -68,11 +68,11 @@ public class EvenTheOdds
       }
    }
    
-   // Get file.
+   // Get case file.
    @GET
-   @Path("/get_file/{file_name}")
+   @Path("/get_case_file/{file_name}")
    @Produces(MediaType.APPLICATION_OCTET_STREAM)
-   public Response get_file(@PathParam ("file_name") String fileName) throws WebApplicationException 
+   public Response get_case_file(@PathParam ("file_name") String fileName) throws WebApplicationException 
    {
 	   synchronized (lock)
 	   {
@@ -111,10 +111,10 @@ public class EvenTheOdds
    }
    
    @POST   
-   @Path("/put_file")
+   @Path("/put_case_file")
    @Consumes(MediaType.MULTIPART_FORM_DATA)
    @Produces(MediaType.TEXT_PLAIN)   
-   public Response put_file(MultipartFormDataInput input) throws WebApplicationException
+   public Response put_case_file(MultipartFormDataInput input) throws WebApplicationException
    {
        synchronized (lock)
        {	   
@@ -140,7 +140,7 @@ public class EvenTheOdds
 		       try
 		       {
 		          InputStream fileStream = input.getFormDataPart("file_name", InputStream.class, null);	
-		     	  if (evenApp.putFile(fileName, fileStream))
+		     	  if (evenApp.putCaseFile(fileName, fileStream))
 		     	  {
 		 			  return(Response.status(200).build());
 		 		  } else { 
@@ -156,4 +156,83 @@ public class EvenTheOdds
 		   }
    		}
    }
+
+   // Get case jury.
+   @GET
+   @Path("/get_jury/{case_name}")
+   @Produces(MediaType.TEXT_PLAIN)
+   public Response get_jury(@PathParam ("case_name") String caseName)
+   {
+      synchronized (lock)
+      {
+    	 String output = "[";
+    	 List<String> juryInfo = evenApp.getJury(caseName);
+    	 for (int i = 0, j = juryInfo.size(); i < j; i++) 
+    	 {
+	         output += juryInfo.get(i);
+	         if (i < j - 1)
+	         {
+    			 output += ",";    	        	 
+	         }
+    	 }    	 
+    	 output += "]";
+         return(Response.status(200).entity(output).build());
+      }
+   }
+   
+   // Add juror.
+   @GET
+   @Path("/add_juror/{case_name}/{juror_name}/{juror_status}")
+   @Produces(MediaType.TEXT_PLAIN)
+   public Response add_juror(@PathParam ("case_name") String caseName,
+		   @PathParam ("juror_name") String jurorName,
+		   @PathParam ("juror_status") String jurorStatus)   
+   {
+      synchronized (lock)
+      {
+    	 if (evenApp.addJuror(caseName, jurorName, jurorStatus))
+    	  {
+			  return(Response.status(200).build());
+		  } else { 
+			  return(Response.status(400).build());
+		  }
+      }
+   }
+   
+   // Update juror status.
+   @GET
+   @Path("/update_juror_status/{case_name}/{juror_name}/{juror_status}")
+   @Produces(MediaType.TEXT_PLAIN)
+   public Response update_juror_status(@PathParam ("case_name") String caseName,
+		   @PathParam ("juror_name") String jurorName,
+		   @PathParam ("juror_status") String jurorStatus)   
+   {
+      synchronized (lock)
+      {
+    	 if (evenApp.updateJurorStatus(caseName, jurorName, jurorStatus))
+    	  {
+			  return(Response.status(200).build());
+		  } else { 
+			  return(Response.status(404).build());
+		  }
+      }
+   } 
+   
+   // Remove juror.
+   @GET
+   @Path("/remove_juror/{case_name}/{juror_name}")
+   @Produces(MediaType.TEXT_PLAIN)
+   public Response remove_juror(@PathParam ("case_name") String caseName,
+		   @PathParam ("juror_name") String jurorName)
+   {
+      synchronized (lock)
+      {
+    	 if (evenApp.removeJuror(caseName, jurorName))
+    	  {
+			  return(Response.status(200).build());
+		  } else { 
+			  return(Response.status(404).build());
+		  }
+      }
+   }      
 }

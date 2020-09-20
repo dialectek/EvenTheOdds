@@ -9,6 +9,6 @@ Export EvenTheOdds.war tomcat servlet.
 Deploy EvenTheOdds.war to tomcat.
 
 HTML:
-Run EvenTheOdds/src/main/webapp/new_case.html and get_case.html in browser.
+Run EvenTheOdds/src/main/webapp/even_the_odds.html in browser.
 
 REST prefix for localhost: http://localhost:8080/EvenTheOdds/rest/service/

@@ -1,0 +1,92 @@
+<html>
+<body>
+<h1>Even (the odds)</h1>
+<p>
+<h2>Get case file</h2>
+<script type="text/javascript">
+function get_case_file() {
+    var action_src = "http://localhost:8080/EvenTheOdds/rest/service/get_case_file/" + 
+        document.getElementsByName("get_file_name")[0].value;
+    var get_case_file_form = document.getElementById('get_case_file_form');
+    get_case_file_form.action = action_src;
+}
+</script>
+<form id="get_case_file_form" onsubmit="get_case_file()">
+<p>File: <input type="text" name="get_file_name" /></p>
+<input type="submit" value="Submit" />
+</form>
+<p>
+<h2>Put case file</h2>
+<form action="http://localhost:8080/EvenTheOdds/rest/service/put_case_file" method="post" enctype="multipart/form-data">
+<p>File: <input type="file" name="file_name" /></p>
+<input type="submit" value="Submit" />
+</form>
+<p>
+<h2>Add juror</h2>
+<script type="text/javascript">
+function add_juror() {
+    var action_src = "http://localhost:8080/EvenTheOdds/rest/service/add_juror/" + 
+        document.getElementsByName("case_name")[0].value + "/" +
+        document.getElementsByName("juror_name")[0].value + "/" +
+        document.getElementsByName("juror_status")[0].value;
+    var add_juror_form = document.getElementById('add_juror_form');
+    add_juror_form.action = action_src;
+}
+</script>
+<form id="add_juror_form" onsubmit="add_juror()">
+<p>Case name: <input type="text" name="case_name" /></p>
+<p>Juror name: <input type="text" name="juror_name" /></p>
+<p>Juror status: <input type="text" name="juror_status" /></p>
+<input type="submit" value="Submit" />
+</form>
+<p>
+<h2>Update juror status</h2>
+<script type="text/javascript">
+function update_juror_status() {
+    var action_src = "http://localhost:8080/EvenTheOdds/rest/service/update_juror_status/" +
+        document.getElementsByName("case_name")[1].value + "/" +
+        document.getElementsByName("juror_name")[1].value + "/" +
+        document.getElementsByName("juror_status")[1].value;
+    var update_juror_status_form = document.getElementById('update_juror_status_form');
+    update_juror_status_form.action = action_src;
+}
+</script>
+<form id="update_juror_status_form" onsubmit="update_juror_status()">
+<p>Case name: <input type="text" name="case_name" /></p>
+<p>Juror name: <input type="text" name="juror_name" /></p>
+<p>Juror status: <input type="text" name="juror_status" /></p>
+<input type="submit" value="Submit" />
+</form>
+<p>
+<h2>Remove juror</h2>
+<script type="text/javascript">
+function remove_juror() {
+    var action_src = "http://localhost:8080/EvenTheOdds/rest/service/remove_juror/" +
+        document.getElementsByName("case_name")[2].value + "/" +
+        document.getElementsByName("juror_name")[2].value;
+    var remove_juror_form = document.getElementById('remove_juror_form');
+    remove_juror_form.action = action_src;
+}
+</script>
+<form id="remove_juror_form" onsubmit="remove_juror()">
+<p>Case name: <input type="text" name="case_name" /></p>
+<p>Juror name: <input type="text" name="juror_name" /></p>
+<input type="submit" value="Submit" />
+</form>
+<p>
+<h2>Get jury</h2>
+<script type="text/javascript">
+function get_jury() {
+    var action_src = "http://localhost:8080/EvenTheOdds/rest/service/get_jury/" +
+        document.getElementsByName("case_name")[3].value;
+    var get_jury_form = document.getElementById('get_jury_form');
+    get_jury_form.action = action_src;
+}
+</script>
+<form id="get_jury_form" onsubmit="get_jury()">
+<p>Case name: <input type="text" name="case_name" /></p>
+<input type="submit" value="Submit" />
+</form>
+</body>
+</html>
+

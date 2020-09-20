@@ -364,13 +364,17 @@ public final class MainActivity extends AppCompatActivity {
                                         }
         );
 
-        // Justice.
-        Button justiceButton = (Button) findViewById(R.id.button_justice);
-        justiceButton.setWidth(buttonWidth);
-        justiceButton.setOnClickListener(new View.OnClickListener() {
+        // Cases screen.
+        Button casesButton = (Button) findViewById(R.id.button_cases);
+        casesButton.setWidth(buttonWidth);
+        casesButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                loadFragment(new JusticeFragment());
+                FragmentManager fm = getFragmentManager();
+                FragmentTransaction fragmentTransaction = fm.beginTransaction();
+                fragmentTransaction.replace(R.id.frameLayout, new Cases());
+                fragmentTransaction.addToBackStack(null);
+                fragmentTransaction.commit();
             }
         });
 
@@ -664,15 +668,6 @@ public final class MainActivity extends AppCompatActivity {
 
     public void logTotalStorage() {
         logMessage("Total storage=" + Formatter.formatFileSize(this, getTotalStorage()) + ".");
-    }
-
-    // Load a fragment.
-    private void loadFragment(Fragment fragment) {
-        FragmentManager fm = getFragmentManager();
-        FragmentTransaction fragmentTransaction = fm.beginTransaction();
-        fragmentTransaction.replace(R.id.frameLayout, fragment);
-        fragmentTransaction.addToBackStack(null);
-        fragmentTransaction.commit();
     }
 
     public static boolean isAlphanumeric(String str)

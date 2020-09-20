@@ -59,13 +59,13 @@
                     android:text="Delete recordings"/>
     
             <Button
-                    android:id="@+id/button_justice"
+                    android:id="@+id/button_cases"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
                     android:background="@drawable/button_rounded"
                     android:layout_weight="1"
-                    android:text="Justice"/>
+                    android:text="Cases"/>
     
         </LinearLayout>
     
