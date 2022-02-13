@@ -15,7 +15,8 @@
             android:launchMode="singleTop"
             android:theme="@style/AppTheme">
         <activity android:name="com.dialectek.even_the_odds.MainActivity"
-                  android:configChanges="orientation">
+                  android:configChanges="orientation"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
